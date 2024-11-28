@@ -1,0 +1,115 @@
+absl-py==2.0.0
+appnope @ file:///Users/builder/cbouss/perseverance-python-buildout/croot/appnope_1699303798458/work
+arviz==0.18.0
+astro-forecaster==2.0.2
+astropy==6.0.0
+astropy-iers-data==0.2024.2.26.0.28.55
+astroquery==0.4.7
+asttokens @ file:///opt/conda/conda-bld/asttokens_1646925590279/work
+beautifulsoup4==4.12.3
+certifi==2024.8.30
+charset-normalizer==3.4.0
+chex==0.1.85
+cloudpickle==3.0.0
+comm @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_3doui0bmzb/croot/comm_1709322861485/work
+contourpy==1.2.0
+cycler==0.12.1
+Cython==3.0.11
+debugpy @ file:///Users/builder/cbouss/perseverance-python-buildout/croot/debugpy_1699253073094/work
+decorator @ file:///opt/conda/conda-bld/decorator_1643638310831/work
+dlib @ file:///Users/runner/miniforge3/conda-bld/dlib_1697537389050/work
+dm-haiku==0.0.11
+dm-tree==0.1.8
+dynesty==2.1.3
+equinox==0.11.3
+etils==1.6.0
+executing @ file:///opt/conda/conda-bld/executing_1646925071911/work
+flax==0.7.5
+fonttools==4.47.0
+fsspec==2023.12.2
+gala==1.9.1
+gaspery==0.2.2
+gast==0.5.4
+h5netcdf==1.3.0
+h5py==3.11.0
+html5lib==1.1
+idna==3.10
+importlib-resources==6.1.1
+ipykernel @ file:///private/var/folders/nz/j6p8yfhx1mv_0grj5xl4650h0000gp/T/abs_ddflobe9t3/croot/ipykernel_1728665605034/work
+ipython @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_31k34m3e25/croot/ipython_1726064238879/work
+jaraco.classes==3.4.0
+jaraco.context==6.0.1
+jaraco.functools==4.1.0
+jax==0.4.23
+jaxlib==0.4.23
+jaxns==2.3.4
+jaxopt==0.8.3
+jaxtyping==0.2.25
+jedi @ file:///private/var/folders/nz/j6p8yfhx1mv_0grj5xl4650h0000gp/T/abs_194648shy3/croot/jedi_1721058355221/work
+jmp==0.0.4
+joblib==1.4.2
+jupyter_client @ file:///Users/builder/cbouss/perseverance-python-buildout/croot/jupyter_client_1701803191601/work
+jupyter_core @ file:///private/var/folders/nz/j6p8yfhx1mv_0grj5xl4650h0000gp/T/abs_73nomeum4p/croot/jupyter_core_1718818302815/work
+keyring==25.4.1
+kiwisolver==1.4.5
+markdown-it-py==3.0.0
+matplotlib==3.8.2
+matplotlib-inline @ file:///Users/builder/cbouss/perseverance-python-buildout/croot/matplotlib-inline_1699242375920/work
+mdurl==0.1.2
+ml-dtypes==0.3.1
+more-itertools==10.5.0
+msgpack==1.0.7
+multipledispatch==1.0.0
+nest-asyncio @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_310vb5e2a0/croot/nest-asyncio_1708532678212/work
+numpy @ file:///Users/runner/miniforge3/conda-bld/numpy_1700874783284/work/dist/numpy-1.26.2-cp312-cp312-macosx_11_0_arm64.whl#sha256=383faf2d870650fe385a809f2e9c71086b2b2dc1a16c7005c91b047114ba218f
+numpyro==0.15.0
+numpyro-ext==0.0.4
+opt-einsum==3.3.0
+optax==0.1.7
+orbax-checkpoint==0.4.8
+packaging @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_81ri4yfpjw/croot/packaging_1720101866878/work
+pandas==2.1.4
+parso @ file:///opt/conda/conda-bld/parso_1641458642106/work
+pexpect @ file:///tmp/build/80754af9/pexpect_1605563209008/work
+Pillow==10.1.0
+platformdirs @ file:///Users/builder/cbouss/perseverance-python-buildout/croot/platformdirs_1701803010714/work
+prompt-toolkit @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_c63v4kqjzr/croot/prompt-toolkit_1704404354115/work
+protobuf==4.25.1
+psutil @ file:///Users/builder/cbouss/perseverance-python-buildout/croot/psutil_1699248249804/work
+ptyprocess @ file:///tmp/build/80754af9/ptyprocess_1609355006118/work/dist/ptyprocess-0.7.0-py2.py3-none-any.whl
+pure-eval @ file:///opt/conda/conda-bld/pure_eval_1646925070566/work
+pyerfa==2.0.1.1
+Pygments==2.17.2
+pyia==1.4.1
+pyparsing==3.1.1
+python-dateutil==2.8.2
+pytz==2023.3.post1
+pyvo==1.5.3
+PyYAML==6.0.1
+pyzmq @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_43pxpbos3z/croot/pyzmq_1705605108344/work
+requests==2.32.3
+rich==13.7.0
+scipy==1.11.4
+seaborn==0.13.2
+setuptools==68.2.2
+six @ file:///tmp/build/80754af9/six_1644875935023/work
+soupsieve==2.6
+stack-data @ file:///opt/conda/conda-bld/stack_data_1646927590127/work
+tabulate==0.9.0
+tensorflow-probability==0.23.0
+tensorstore==0.1.51
+tinygp==0.3.0
+toolz==0.12.0
+tornado @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_a4w03z48br/croot/tornado_1718740114858/work
+tqdm==4.66.1
+traitlets @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_500m2_1wyk/croot/traitlets_1718227071952/work
+typeguard==2.13.3
+typing_extensions==4.9.0
+tzdata==2023.4
+urllib3==2.2.3
+wcwidth @ file:///Users/ktietz/demo/mc3/conda-bld/wcwidth_1629357192024/work
+webencodings==0.5.1
+wheel==0.42.0
+xarray==2024.6.0
+xarray-einstats==0.7.0
+zipp==3.17.0
