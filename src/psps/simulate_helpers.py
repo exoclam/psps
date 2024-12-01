@@ -1224,11 +1224,18 @@ def gala_galactic_heights(df, output=True):
     Use Gala (Price-Whelan+) to simulate orbits of Gaia stars and get their Z_maxes
     """
 
+    """
     # merge sample with Megan Bedell's Gaia-Kepler cross-match because those save info on RV, proper motion, parallax, etc required for Gala
     berger = Table.read(path+'data/berger_kepler_stellar_fgk.csv')
     megan = Table.read(path+'data/kepler_dr3_good.fits')
     merged = join(berger, megan, keys='kepid')
     merged.rename_column('parallax_2', 'parallax')
+    #print(merged[['parallax', 'parallax_error', 'radial_velocity', 'radial_velocity_error']])
+    """
+    df['radial_velocity'] = np.random.normal(df['radial_velocity'], df['radial_velocity_error'])
+    df['pmra'] = np.random.normal(df['pmra'], df['pmra_error'])
+    df['pmdec'] = np.random.normal(df['pmdec'], df['pmdec_error'])
+    df['parallax'] = np.random.normal(df['parallax'], df['parallax_error'])
 
     # mise en place
     with coord.galactocentric_frame_defaults.set("v4.0"):
@@ -1244,13 +1251,11 @@ def gala_galactic_heights(df, output=True):
 
     sun_orbit = mw_potential.integrate_orbit(sun_w0, dt=0.5 * u.Myr, t1=0, t2=4 * u.Gyr)
 
-    star_gaia = GaiaData(merged)
+    star_gaia = GaiaData(df)
 
     star_gaia_c = star_gaia.get_skycoord()
     star_galcen = star_gaia_c.transform_to(galcen_frame)
     star_w0 = gd.PhaseSpacePosition(star_galcen.data)
-    print(star_w0)
-    quit()
 
     # calculate orbits and retrieve Z_maxes
     zmaxes = []
@@ -1261,7 +1266,7 @@ def gala_galactic_heights(df, output=True):
         zmaxes.append(zmax)
 
     zmaxes_df = pd.DataFrame({'height': zmaxes})
-    zmaxes_df.to_csv(path+'data/zmaxes.csv', index=False)
+    #zmaxes_df.to_csv(path+'data/zmaxes.csv', index=False)
     
     return zmaxes
 

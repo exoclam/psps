@@ -17,6 +17,7 @@ import jax.numpy as jnp
 from tqdm import tqdm
 from ast import literal_eval
 import seaborn as sns
+from tqdm import tqdm
 
 from itertools import zip_longest
 import numpy.ma as ma # for masked arrays
@@ -37,7 +38,10 @@ pylab_params = {'legend.fontsize': 'large',
          'ytick.labelsize':'large'}
 pylab.rcParams.update(pylab_params)
 
-path = '/Users/chrislam/Desktop/mastrangelo/' # new computer has different username
+import warnings
+warnings.filterwarnings("ignore")
+
+path = '/Users/chrislam/Desktop/psps/' 
 
 # we're gonna need this for reading in the initial Berger+ 2020 data
 def literal_eval_w_exceptions(x):
@@ -54,6 +58,7 @@ megan = Table.read(path+'data/kepler_dr3_good.fits')
 
 # cross-match the cross-matches (we only lose ~100 stars)
 merged = join(berger, megan, keys='kepid')
+merged.rename_column('parallax_2', 'parallax')
 berger_kepler = berger_kepler.loc[berger_kepler['kepid'].isin(merged['kepid'])]
 
 # draw eccentricities using Van Eylen+ 2019
@@ -73,7 +78,7 @@ transit_multiplicities_all = []
 geom_transit_multiplicities_all = []
 completeness_all = []
 # for each model, draw around stellar age errors 10 times
-for j in range(30): # 10
+for j in tqdm(range(1)): 
 
     # draw stellar radius, mass, and age using asymmetric errors 
     berger_kepler_temp = simulate_helpers.draw_asymmetrically(berger_kepler, 'iso_rad', 'iso_rad_err1', 'iso_rad_err2', 'stellar_radius')
@@ -81,11 +86,49 @@ for j in range(30): # 10
     berger_kepler_temp = simulate_helpers.draw_asymmetrically(berger_kepler_temp, 'iso_mass', 'iso_mass_err1', 'iso_mass_err2', 'stellar_mass')
 
     # enrich berger_kepler with z_maxes using gala
-    z_maxes = simulate_helpers.gala_galactic_heights(berger_kepler_temp, output=False)
-    berger_kepler_temp['height'] = z_maxes * 1000 # pc
+    z_maxes = simulate_helpers.gala_galactic_heights(merged, output=False)
+    berger_kepler_temp['height'] = z_maxes # kpc
 
     ### create a Population object to hold information about the occurrence law governing that specific population
-    # STEP
+    # THIS IS WHERE YOU CHOOSE THE PLANET FORMATION HISTORY MODEL YOU WANT TO FORWARD MODEL
     pop = Population(berger_kepler_temp['age'], threshold, frac1, frac2)
     frac_hosts = pop.galactic_occurrence_step(threshold, frac1, frac2)
+
+    alpha_se = np.random.normal(-1., 0.2)
+    alpha_sn = np.random.normal(-1.5, 0.1)
+
+    # create Star objects, with their planetary systems
+    star_data = []
+    for i in tqdm(range(len(berger_kepler_temp))): # 100
+        star = Star(berger_kepler_temp['age'][i], berger_kepler_temp['stellar_radius'][i], berger_kepler_temp['stellar_mass'][i], berger_kepler_temp['rrmscdpp06p0'][i], frac_hosts[i], berger_kepler_temp['height'][i], alpha_se, alpha_sn, berger_kepler_temp['kepid'][i])
+        star_update = {
+            'kepid': star.kepid,
+            'age': star.age,
+            'stellar_radius': star.stellar_radius,
+            'stellar_mass': star.stellar_mass,
+            'rrmscdpp06p0': star.rrmscdpp06p0,
+            'frac_host': star.frac_host,
+            'height': star.height,
+            'midplane': star.midplane,
+            'prob_intact': star.prob_intact,
+            'status': star.status,
+            'sigma_incl': star.sigma_incl,
+            'num_planets': star.num_planets,
+            'periods': star.periods,
+            'incls': star.incls,
+            'mutual_incls': star.mutual_incls,
+            'eccs': star.eccs,
+            'omegas': star.omegas,
+            'planet_radii': star.planet_radii
+        }
+        star_data.append(star_update)
+        pop.add_child(star)
+
+    # convert back to DataFrame
+    berger_kepler_all = pd.DataFrame.from_records(star_data)
+    berger_kepler_all.to_csv(path+'data/berger_gala/step1.csv')
+
+
+
+
 

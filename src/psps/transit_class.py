@@ -10,8 +10,6 @@ import scipy.stats as stats
 import random
 from scipy.stats import gaussian_kde, loguniform
 from math import lgamma
-import psps.simulate_helpers as simulate_helpers
-
 import matplotlib.pyplot as plt
 import matplotlib.pylab as pylab
 import timeit 
@@ -24,6 +22,8 @@ import jax
 import jax.numpy as jnp
 from jax import grad, jit, vmap
 
+import psps.simulate_helpers as simulate_helpers
+
 pylab_params = {'legend.fontsize': 'large',
          'axes.labelsize': 'x-large',
          'axes.titlesize':'x-large',
@@ -31,20 +31,13 @@ pylab_params = {'legend.fontsize': 'large',
          'ytick.labelsize':'large'}
 pylab.rcParams.update(pylab_params)
 
-#input_path = '/blue/sarahballard/c.lam/sculpting2/' # HPG
-#output_path = '/blue/sarahballard/c.lam/sculpting2/mastrangelo/' # HPG
-path = '/Users/chrislam/Desktop/mastrangelo/' 
+path = '/Users/chrislam/Desktop/psps/' 
 #berger_kepler = pd.read_csv(input_path+'berger_kepler_stellar_fgk.csv') # crossmatched with Gaia via Bedell
 berger_kepler = pd.read_csv(path+'data/berger_kepler_stellar_fgk.csv') # crossmatched with Gaia via Bedell
 
 # make berger_kepler more wieldy
 berger_kepler = berger_kepler[['kepid', 'iso_teff', 'iso_teff_err1', 'iso_teff_err2','feh_x','feh_err1','feh_err2',
 						     'iso_age', 'iso_age_err1', 'iso_age_err2', 'iso_mass', 'iso_mass_err1', 'iso_mass_err2', 'rrmscdpp06p0', 'iso_rad', 'iso_rad_err1', 'iso_rad_err2']]
-#pnum = pd.read_csv(path+'data/pnum_plus_cands_fgk.csv') # planet hosts among crossmatched Berger sample
-#k = pnum.groupby('kepid').count().koi_count.reset_index().groupby('koi_count').count()
-k = pd.Series([833, 134, 38, 15, 5, 0])
-k_score = pd.Series([631, 115, 32, 10, 4, 0])
-k_fpp = pd.Series([1088, 115, 34, 9, 3, 0])
 G = 6.6743e-8 # gravitational constant in cgs
 
 # how many params, how many dims, initialize cube
@@ -339,7 +332,6 @@ class Star:
     - height: galactic scale height [pc]
     - alpha_se: power law exponent for Super-Earth radii
     - alpha_sn: power law exponent for Sub-Neptune radii
-    - subkey: JAX split key
     - kepid: default to None, unless user provides Kepler IDs
 
     Output:
@@ -348,7 +340,7 @@ class Star:
     """
 
     def __init__(
-        self, age, stellar_radius, stellar_mass, rrmscdpp06p0, frac_host, height, subkey, alpha_se, alpha_sn, kepid=None, **kwargs 
+        self, age, stellar_radius, stellar_mass, rrmscdpp06p0, frac_host, height, alpha_se, alpha_sn, kepid=None, **kwargs 
     ):
 
         #self.kepid = kepid
