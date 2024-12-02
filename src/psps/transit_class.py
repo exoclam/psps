@@ -31,20 +31,6 @@ pylab_params = {'legend.fontsize': 'large',
          'ytick.labelsize':'large'}
 pylab.rcParams.update(pylab_params)
 
-path = '/Users/chrislam/Desktop/psps/' 
-#berger_kepler = pd.read_csv(input_path+'berger_kepler_stellar_fgk.csv') # crossmatched with Gaia via Bedell
-berger_kepler = pd.read_csv(path+'data/berger_kepler_stellar_fgk.csv') # crossmatched with Gaia via Bedell
-
-# make berger_kepler more wieldy
-berger_kepler = berger_kepler[['kepid', 'iso_teff', 'iso_teff_err1', 'iso_teff_err2','feh_x','feh_err1','feh_err2',
-						     'iso_age', 'iso_age_err1', 'iso_age_err2', 'iso_mass', 'iso_mass_err1', 'iso_mass_err2', 'rrmscdpp06p0', 'iso_rad', 'iso_rad_err1', 'iso_rad_err2']]
-G = 6.6743e-8 # gravitational constant in cgs
-
-# how many params, how many dims, initialize cube
-ndim = 3
-nparams = 3
-cube = [0, 0, 0]
-
 # create JAX random seed
 key = jax.random.key(42)
 
