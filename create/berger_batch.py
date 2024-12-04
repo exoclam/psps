@@ -17,6 +17,7 @@ import jax.numpy as jnp
 from tqdm import tqdm
 from ast import literal_eval
 import seaborn as sns
+from glob import glob
 from tqdm import tqdm
 
 from itertools import zip_longest
@@ -43,73 +44,7 @@ warnings.filterwarnings("ignore")
 
 path = '/Users/chrislam/Desktop/psps/' 
 
-# we're gonna need this for reading in the initial Berger+ 2020 data
-def literal_eval_w_exceptions(x):
-    try:
-        return literal_eval(str(x))   
-    except Exception as e:
-        pass
-
-name = 'step_11_20_85'
 #"""
-# diagnostic plotting age vs height
-berger_kepler_all = pd.read_csv(path+'data/berger_gala/'+name+'.csv')
-num_hosts = berger_kepler_all.loc[berger_kepler_all['num_planets']>0]
-print("f: ", len(num_hosts)/len(berger_kepler_all))
-berger_kepler_all = berger_kepler_all.dropna(subset=['height'])
-berger_kepler_all['height'] = berger_kepler_all['height'] * 1000 # to pc
-
-berger_kepler_all['periods'] = berger_kepler_all['periods'].apply(literal_eval_w_exceptions)
-berger_kepler_all['planet_radii'] = berger_kepler_all['planet_radii'].apply(literal_eval_w_exceptions)
-berger_kepler_all['incls'] = berger_kepler_all['incls'].apply(literal_eval_w_exceptions)
-berger_kepler_all['mutual_incls'] = berger_kepler_all['mutual_incls'].apply(literal_eval_w_exceptions)
-berger_kepler_all['eccs'] = berger_kepler_all['eccs'].apply(literal_eval_w_exceptions)
-berger_kepler_all['omegas'] = berger_kepler_all['omegas'].apply(literal_eval_w_exceptions)
-
-plt.hist2d(berger_kepler_all['height'], berger_kepler_all['age'], bins=40)
-plt.xlabel('height [pc]')
-plt.ylabel('age [Gyr]')
-plt.xscale('log')
-plt.xlim([0, 1500])
-plt.ylim([0, 14])
-#plt.savefig(path+'plots/trilegal_height_age.png')
-plt.show()
-
-zink_sn_kepler = pd.DataFrame({'scale_height': np.array([120., 200., 300., 500., 800.]), 'occurrence': np.array([38, 29, 23, 24, 17]), 'occurrence_err1': np.array([5, 3, 2, 2, 4]), 'occurrence_err2': np.array([6, 3, 2, 4, 4])})
-zink_se_kepler = pd.DataFrame({'scale_height': np.array([120., 200., 300., 500., 800.]), 'occurrence': np.array([28, 29, 25, 27, 18]), 'occurrence_err1': np.array([5, 3, 3, 4, 4]), 'occurrence_err2': np.array([5, 3, 3, 3, 4])})
-zink_kepler_occurrence = np.array([38, 29, 23, 24, 17])+np.array([28, 29, 25, 27, 18])
-zink_kepler_occurrence_err1 = np.round(np.sqrt((zink_sn_kepler['occurrence_err1'])**2 + (zink_se_kepler['occurrence_err1']**2)), 2)
-zink_kepler_occurrence_err2 = np.round(np.sqrt((zink_sn_kepler['occurrence_err2'])**2 + (zink_se_kepler['occurrence_err2']**2)), 2)
-zink_kepler = pd.DataFrame({'scale_height': np.array([120., 200., 300., 500., 800.]), 'occurrence': zink_kepler_occurrence, 'occurrence_err1': zink_kepler_occurrence_err1, 'occurrence_err2': zink_kepler_occurrence_err2})
-
-height_bins = np.array([0., 150, 250, 400, 650, 3000])
-berger_kepler_all['height_bins'] = pd.cut(berger_kepler_all['height'], bins=height_bins, include_lowest=True)
-berger_kepler_counts = np.array(berger_kepler_all.groupby(['height_bins']).count().reset_index()['kepid'])
-
-# isolate planet hosts and bin them by galactic height
-berger_kepler_planets = berger_kepler_all.loc[berger_kepler_all['num_planets'] > 0]
-berger_kepler_planets = berger_kepler_planets.explode(['periods', 'planet_radii', 'incls', 'mutual_incls', 'eccs', 'omegas']).reset_index(drop=True)
-berger_kepler_planets_counts_precut = np.array(berger_kepler_planets.groupby(['height_bins']).count().reset_index()['kepid'])
-
-berger_kepler_planets = berger_kepler_planets.loc[(berger_kepler_planets['periods'] <= 40) & (berger_kepler_planets['periods'] > 1)] # limit periods to fairly compare with Zink+ 2023
-berger_kepler_planets = berger_kepler_planets.loc[berger_kepler_planets['planet_radii'] <= 4.] # limit radii to fairly compare with SEs in Zink+ 2023 (2)...or how about include SNs too (4)?
-berger_kepler_planets_counts = np.array(berger_kepler_planets.groupby(['height_bins']).count().reset_index()['kepid'])
-
-physical_planet_occurrence = 100 * berger_kepler_planets_counts/berger_kepler_counts # normally yes
-print("physical planet occurrence: ", physical_planet_occurrence)
-
-plt.errorbar(x=zink_kepler['scale_height'], y=zink_kepler['occurrence'], yerr=(zink_kepler['occurrence_err1'], zink_kepler['occurrence_err2']), fmt='o', capsize=3, elinewidth=1, markeredgewidth=1, label='Zink+ 2023 Kepler data')
-plt.scatter(x=zink_kepler['scale_height'], y=physical_planet_occurrence, c='red', label='model')
-plt.xlabel(r'$Z_{max}$ [pc]')
-plt.ylabel('planets per 100 stars')
-plt.legend()
-plt.tight_layout()
-plt.savefig(path+'plots/'+name)
-plt.show()
-
-quit()
-#"""
-
 berger_kepler = pd.read_csv(path+'data/berger_kepler_stellar_fgk.csv') # crossmatched with Gaia via Bedell
 # Berger+ 2020 sample has lots of stellar params we need, but no source_id
 berger = Table.read(path+'data/berger_kepler_stellar_fgk.csv')
