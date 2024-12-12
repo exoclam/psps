@@ -58,9 +58,17 @@ def literal_eval_w_exceptions(x):
         pass
 
 # planet formation history model parameters
-threshold = 11.5 # cosmic age in Gyr; 13.7 minus stellar age, then round
+threshold = 11.5 # cosmic age in Gyr; 13.7 minus stellar age, then round; f = 0.31
 frac1 = 0.2 # frac1 must be < frac2 if comparing cosmic ages
 frac2 = 0.85
+
+threshold = 9.5 # f = 0.45; not using
+frac1 = 0.25
+frac2 = 0.75
+
+threshold = 9.5 # f = 0.32
+frac1 = 0.1
+frac2 = 0.65
 
 name_thresh = 115
 name_f1 = 20
@@ -96,6 +104,7 @@ for i in tqdm(range(len(sim))):
     fs.append(f)
 
     berger_kepler_all = berger_kepler_all.dropna(subset=['height'])
+    berger_kepler_all['age'] = berger_kepler_all['age']
     berger_kepler_all['height'] = berger_kepler_all['height'] * 1000 # to pc
     berger_kepler_all['periods'] = berger_kepler_all['periods'].apply(literal_eval_w_exceptions)
     berger_kepler_all['planet_radii'] = berger_kepler_all['planet_radii'].apply(literal_eval_w_exceptions)
@@ -104,13 +113,12 @@ for i in tqdm(range(len(sim))):
     berger_kepler_all['eccs'] = berger_kepler_all['eccs'].apply(literal_eval_w_exceptions)
     berger_kepler_all['omegas'] = berger_kepler_all['omegas'].apply(literal_eval_w_exceptions)
 
+    #print(sim[i], berger_kepler_all['height'])
+
     berger_kepler_all = berger_kepler_all.loc[(berger_kepler_all['height'] <= 1500) & (berger_kepler_all['age'] <= 13.5)] 
     print("FINAL SAMPLE COUNT: ", len(berger_kepler_all))
 
-    print(list(berger_kepler_all.columns))
-    quit()
-    utils.plot_properties(berger_kepler_all['iso_teff'], berger_kepler_all['iso_age'])
-    quit()
+    #utils.plot_properties(berger_kepler_all['iso_teff'], berger_kepler_all['iso_age'])
     heights.append(np.array(berger_kepler_all['height']))
     ages.append(np.array(berger_kepler_all['age']))
 
@@ -235,7 +243,10 @@ for i in tqdm(range(len(sim))):
         adjusted_planet_occurrence = len_berger_kepler_transiters/berger_kepler_counts
         adjusted_planet_occurrences_all.append(adjusted_planet_occurrence)
 
+print("")
 print("f: ", np.mean(fs))
+print("")
+
 heights = np.concatenate(heights)
 ages = np.concatenate(ages)
 
