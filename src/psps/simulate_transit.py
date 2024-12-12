@@ -10,10 +10,12 @@ import scipy.stats as stats
 import random
 from scipy.stats import gaussian_kde, loguniform
 from math import lgamma
-from simulate_helpers import *
 import matplotlib.pyplot as plt
 import timeit 
 from datetime import datetime
+
+import psps.simulate_helpers as simulate_helpers
+from psps.simulate_helpers import *
 
 G = 6.6743e-8 # gravitational constant in cgs
 input_path = '/blue/sarahballard/c.lam/sculpting2/' # HPG

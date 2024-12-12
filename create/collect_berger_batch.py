@@ -31,6 +31,8 @@ from astropy.table import Table, join
 
 from psps.transit_class import Population, Star
 import psps.simulate_helpers as simulate_helpers
+import psps.simulate_transit as simulate_transit
+import psps.utils as utils
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -73,6 +75,15 @@ heights = []
 ages = []
 fs = []
 physical_planet_occurrences = []
+physical_planet_occurrences_precut = []
+detected_planet_occurrences_all = []
+adjusted_planet_occurrences_all = []
+transit_multiplicities_all = []
+geom_transit_multiplicities_all = []
+completeness_all = []
+
+period_grid = np.logspace(np.log10(2), np.log10(300), 10)
+radius_grid = np.linspace(1, 4, 10)
 height_bins = np.array([0., 150, 250, 400, 650, 3000])
 for i in tqdm(range(len(sim))):
 
@@ -94,7 +105,12 @@ for i in tqdm(range(len(sim))):
     berger_kepler_all['omegas'] = berger_kepler_all['omegas'].apply(literal_eval_w_exceptions)
 
     berger_kepler_all = berger_kepler_all.loc[(berger_kepler_all['height'] <= 1500) & (berger_kepler_all['age'] <= 13.5)] 
+    print("FINAL SAMPLE COUNT: ", len(berger_kepler_all))
 
+    print(list(berger_kepler_all.columns))
+    quit()
+    utils.plot_properties(berger_kepler_all['iso_teff'], berger_kepler_all['iso_age'])
+    quit()
     heights.append(np.array(berger_kepler_all['height']))
     ages.append(np.array(berger_kepler_all['age']))
 
@@ -223,7 +239,7 @@ print("f: ", np.mean(fs))
 heights = np.concatenate(heights)
 ages = np.concatenate(ages)
 
-#plt.hist2d(heights, ages, bins=40)
+#fplt.(heights, ages, bins=40)
 norm = 10
 hist, xedges, yedges = np.histogram2d(ages, heights, bins=20)
 hist = hist.T
@@ -232,7 +248,7 @@ hist = hist.T
     #hist *= norm / hist.sum(axis=1, keepdims=True)
 plt.pcolormesh(xedges, yedges, hist, cmap='Blues')
 
-plt.ylabel('height [pc]')
+plt.ylabel('r"$Z_{max}$ [pc]"')
 plt.xlabel('age [Gyr]')
 #plt.xscale('log')
 #plt.xlim([0, 1500])
@@ -251,6 +267,10 @@ zink_kepler = pd.DataFrame({'scale_height': np.array([120., 200., 300., 500., 80
 mean_physical_planet_occurrences = np.mean(physical_planet_occurrences, axis=0)
 yerr = np.std(physical_planet_occurrences, axis=0)
 print("mean physical planet occurrences, and yerr: ", mean_physical_planet_occurrences, yerr)
+
+mean_recovered_planet_occurrences = 100 * np.mean(adjusted_planet_occurrences_all, axis=0)
+yerr = 100 * np.std(adjusted_planet_occurrences_all, axis=0)
+print("recovered planet occurrences, and yerr: ", mean_recovered_planet_occurrences, yerr)
 
 z_max = np.logspace(2, 3, 100)
 def model(x, tau, occurrence):
@@ -274,12 +294,12 @@ def power_model(x, yerr, y=None):
     scaleMin = 100
     const = (scaleMax)**(tau+1)/(tau+1) - ((scaleMin)**(tau+1)/(tau+1))
     planet_yield = occurrence * x**(tau)/const/dln * 100
-    print("planet yield: ", planet_yield)
-    print("yerr: ", yerr)
-    print("y: ", y)
-    print("tau: ", tau)
-    print("occurrence: ", occurrence)
-    print("sample model: ", model(z_max, tau, occurrence))
+    #print("planet yield: ", planet_yield)
+    #print("yerr: ", yerr)
+    #print("y: ", y)
+    #print("tau: ", tau)
+    #print("occurrence: ", occurrence)
+    #print("sample model: ", model(z_max, tau, occurrence))
     
     with numpyro.plate("data", len(x)):
         numpyro.sample("planet_yield", dist.Normal(planet_yield, yerr), obs=y)
@@ -354,7 +374,7 @@ ax1.fill_between(z_max, yield_max, yield_min, color='red', alpha=0.3, label='Zin
 ax1.errorbar(x=zink_kepler['scale_height'], y=zink_kepler['occurrence'], yerr=(zink_kepler['occurrence_err1'], zink_kepler['occurrence_err2']), fmt='o', color='red', alpha=0.5, capsize=3, elinewidth=1, markeredgewidth=1, label='Zink+ 2023 Kepler data')
 
 # our simulated data
-ax1.errorbar(x=zink_kepler['scale_height'], y=np.mean(physical_planet_occurrences, axis=0), yerr=np.std(physical_planet_occurrences, axis=0), fmt='o', capsize=3, elinewidth=1, markeredgewidth=1, color='#03acb1', alpha=0.5, label='model yield')
+ax1.errorbar(x=zink_kepler['scale_height'], y=mean_physical_planet_occurrences, yerr=yerr, fmt='o', capsize=3, elinewidth=1, markeredgewidth=1, color='#03acb1', alpha=0.5, label='model yield')
 
 # plot our best fit posteriors
 our_yield_max = []
@@ -386,7 +406,7 @@ ax1.xaxis.set_major_formatter(matplotlib.ticker.StrMethodFormatter('{x:.0f}'))
 ax1.xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
 ax1.set_xticks(ticks=[100, 300, 1000])
 ax1.set_yticks(ticks=[10, 30, 100])
-ax1.set_xlabel("galactic scale height [pc]")
+ax1.set_xlabel(r"$Z_{max}$ [pc]")
 ax1.set_ylabel("planets per 100 stars")
 #plt.title('m12z-like SFH')
 #ax1.set_title('f=%1.2f' % frac1 + ' if <=%i ' % threshold + 'Gyr; f=%1.2f' % frac2 + ' if >%i ' % threshold + 'Gyr') 

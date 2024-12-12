@@ -27,6 +27,7 @@ from astropy.table import Table, join
 
 from psps.transit_class import Population, Star
 import psps.simulate_helpers as simulate_helpers
+import psps.utils as utils
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -43,9 +44,11 @@ import warnings
 warnings.filterwarnings("ignore")
 
 path = '/Users/chrislam/Desktop/psps/' 
+path = '/home/c.lam/blue/psps/'
 
 #"""
 berger_kepler = pd.read_csv(path+'data/berger_kepler_stellar_fgk.csv') # crossmatched with Gaia via Bedell
+
 # Berger+ 2020 sample has lots of stellar params we need, but no source_id
 berger = Table.read(path+'data/berger_kepler_stellar_fgk.csv')
 # Bedell cross-match has the Gaia DR3 source_id we need to calculate Zmax with Gala
@@ -60,9 +63,14 @@ berger_kepler = berger_kepler.loc[berger_kepler['kepid'].isin(merged['kepid'])]
 model_flag = 'rayleigh'
 
 # planet formation history model parameters
-threshold = 11. # cosmic age in Gyr; 13.7 minus stellar age, then round
-frac1 = 0.2 # frac1 must be < frac2 if comparing cosmic ages
-frac2 = 0.85
+threshold = 9.5 # cosmic age in Gyr; 13.7 minus stellar age, then round
+frac1 = 0.25 # frac1 must be < frac2 if comparing cosmic ages
+frac2 = 0.75
+
+name_thresh = 95
+name_f1 = 25
+name_f2 = 75
+name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 
 # send da video
 physical_planet_occurrences = []
@@ -73,7 +81,7 @@ transit_multiplicities_all = []
 geom_transit_multiplicities_all = []
 completeness_all = []
 # for each model, draw around stellar age errors 10 times
-for j in tqdm(range(1)): 
+for j in tqdm(range(30)): 
 
     # draw stellar radius, mass, and age using asymmetric errors 
     berger_kepler_temp = simulate_helpers.draw_asymmetrically(berger_kepler, 'iso_rad', 'iso_rad_err1', 'iso_rad_err2', 'stellar_radius')
@@ -83,6 +91,12 @@ for j in tqdm(range(1)):
     # enrich berger_kepler with z_maxes using gala
     z_maxes = simulate_helpers.gala_galactic_heights(merged, output=False)
     berger_kepler_temp['height'] = z_maxes # kpc
+
+    # I need to plot Figs 1 & 2; usually don't turn this on
+    #print("before dropping heights: ", len(berger_kepler_temp))
+    #berger_kepler_temp = berger_kepler_temp.dropna(subset='height')
+    #print("after dropping heights: ", len(berger_kepler_temp))
+    #utils.plot_properties(berger_kepler['iso_teff'], berger_kepler['iso_age'])
 
     ### create a Population object to hold information about the occurrence law governing that specific population
     # THIS IS WHERE YOU CHOOSE THE PLANET FORMATION HISTORY MODEL YOU WANT TO FORWARD MODEL
@@ -121,7 +135,7 @@ for j in tqdm(range(1)):
 
     # convert back to DataFrame
     berger_kepler_all = pd.DataFrame.from_records(star_data)
-    berger_kepler_all.to_csv(path+'data/berger_gala/'+name+'.csv')
+    berger_kepler_all.to_csv(path+'data/berger_gala/'+name+'_'+str(j)+'.csv')
 
 
 
