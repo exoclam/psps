@@ -70,9 +70,29 @@ threshold = 9.5 # f = 0.32
 frac1 = 0.1
 frac2 = 0.65
 
-name_thresh = 115
-name_f1 = 20
-name_f2 = 85
+threshold = 7.5 # f = 0.35
+frac1 = 0.01
+frac2 = 0.6
+
+threshold = 5.5 # f = 0.30
+frac1 = 0.01
+frac2 = 0.4
+
+threshold = 12. # f = 0.28
+frac1 = 0.2
+frac2 = 0.9
+
+threshold = 11. # f = 0.30
+frac1 = 0.15
+frac2 = 0.8
+
+threshold = 10. # f = 
+frac1 = 0.05
+frac2 = 0.7
+
+name_thresh = 10
+name_f1 = 5
+name_f2 = 70
 name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 
 #"""
@@ -280,8 +300,8 @@ yerr = np.std(physical_planet_occurrences, axis=0)
 print("mean physical planet occurrences, and yerr: ", mean_physical_planet_occurrences, yerr)
 
 mean_recovered_planet_occurrences = 100 * np.mean(adjusted_planet_occurrences_all, axis=0)
-yerr = 100 * np.std(adjusted_planet_occurrences_all, axis=0)
-print("recovered planet occurrences, and yerr: ", mean_recovered_planet_occurrences, yerr)
+yerr_recovered = 100 * np.std(adjusted_planet_occurrences_all, axis=0)
+print("recovered planet occurrences, and yerr: ", mean_recovered_planet_occurrences, yerr_recovered)
 
 z_max = np.logspace(2, 3, 100)
 def model(x, tau, occurrence):

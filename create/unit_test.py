@@ -66,18 +66,64 @@ megan = Table.read(path+'data/kepler_dr3_good.fits')
 # cross-match the cross-matches (we only lose ~100 stars)
 merged = join(berger, megan, keys='kepid')
 merged.rename_column('parallax_2', 'parallax')
+
 berger_kepler = berger_kepler.loc[berger_kepler['kepid'].isin(merged['kepid'])]
+
+"""
+### TEST F1 AND F2 PER THRESHOLD (this is not a useful exercise)
+kois = pd.read_csv(path+'data/cumulative_2021.03.04_20.04.43.csv')
+kois = kois.loc[kois.koi_disposition != 'FALSE POSITIVE']
+
+positives_kepler = pd.merge(berger_kepler, kois, how='inner', right_on='kepid', left_on='KIC') 
+
+# hmm, shouldn't we already be able to back out the fraction of Kepler hosts per age threshold, to rough order?
+thresholds = np.linspace(1, 10, 19)
+
+for thresh in thresholds:
+    berger_kepler_old = berger_kepler.loc[berger_kepler['iso_age'] >= thresh]
+    berger_kepler_young = berger_kepler.loc[berger_kepler['iso_age'] < thresh]
+
+    planets_old = positives_kepler.loc[positives_kepler['iso_age'] >= thresh]
+    planets_young = positives_kepler.loc[positives_kepler['iso_age'] < thresh]
+
+    #print(planets_old.drop_duplicates(subset='kepid_x'))
+    #print(berger_kepler_old.drop_duplicates(subset='kepid'))
+
+    f1 = len(planets_old.drop_duplicates(subset='kepid_x'))/len(berger_kepler_old.drop_duplicates(subset='kepid'))
+    f2 = len(planets_young.drop_duplicates(subset='kepid_x'))/len(berger_kepler_young.drop_duplicates(subset='kepid'))
+
+    print("age: ", thresh, ", threshold: ", 13.7 - thresh, ", f1: ", f1, ", f2: ", f2)
+
+quit()
+"""
 
 # draw eccentricities using Van Eylen+ 2019
 model_flag = 'rayleigh'
 
 # planet formation history model parameters
-threshold = 9.5 # cosmic age in Gyr; 13.7 minus stellar age, then round
+threshold = 5. # cosmic age in Gyr; 13.7 minus stellar age, then round
 frac1 = 0.1 # frac1 must be < frac2 if comparing cosmic ages
-frac2 = 0.65
+frac2 = 0.4 # 0.55 led to f=0.3, high Z being too high, low Z being a bit low; yet, 0.6 led to f=0.23...?
+# 10, 0.15, 0.55 led to f=0.28, high Z being fine, low Z being a bit low; 10, 0.15, 0.6, f=0.3, low Z too high, high Z too low --> 10, 0.25, 0.5, led to f=0.34, low Z too low, high Z too high (basically flat) --> 10, 0.2, 0.6, led to f=0.34 and basically flat --> 10, 0.1, 0.7, f=0.31, low Z is good, high Z is a bit high --> 10, 0.05, 0.7, f=0.28, perfect match tho
+# 5.5, 0.01, 0.4 led to f=0.3, flat line with high Z just above, low Z being way too low
+# 12, 0.15, 0.7 led to f=0.21, low Z is way too low --> 12, 0.2, 0.85 led to f=0.28, low Z almost there --> 12, 0.25, 0.9 led to f=0.33, perfect low Z, high Z a bit high --> 12, 0.2, 0.9 led to f=0.28, low Z a bit low again.
+# 11, 0.2, 0.9 led to f=0.36, everything too high --> 11, 0.15, 0.85, led to f=0.31, low Z a bit high --> 11, 0.15, 0.8, led to f=0.3, as close as I can get
+
+# monotonic: 0, 0.8 --> f=0.47, medium and high Z way too high (basically flat); 0, 0.6 --> f=0.36, still flat, low Z a bit under, high Z still high; 0.05, 0.5 --> f=0.32, flat, low Z low, high Z high; 0.01, 0.55 --> f=0.32, flat as usual; 0.1, 0.4 --> f=
+
+# piecewise: 0.1, 0.6, 10 --> f=0.18, much too low; 0.1, 0.6, 5 --> f=0.3, low Z a bit low, high Z a bit high; 0.15, 0.55, 6 --> f=0.29, basically flat; 0.05, 0.65, 5 --> f=0.29, still flat; 0.05, 0.7, 5 --> f=0.31, low Z a bit low, high Z a bit high, the closest we've gotten  
+
+"""
+# make Fig 3 for Paper III, in order to show a sample platter of step function models
+thresholds = np.array([12, 11.5, 11, 9.5, 7.5, 5.5])
+f1s = np.array([0.2, 0.2, 0.15, 0.1, 0.01, 0.01])
+f2s = np.array([0.9, 0.85, 0.8, 0.65, 0.6, 0.4])
+utils.plot_models(thresholds, f1s, f2s)
+quit()
+"""
 
 name_thresh = 95
-name_f1 = 10
+name_f1 = 5
 name_f2 = 65
 name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 
@@ -116,7 +162,9 @@ for j in tqdm(range(2)):
     ### create a Population object to hold information about the occurrence law governing that specific population
     # THIS IS WHERE YOU CHOOSE THE PLANET FORMATION HISTORY MODEL YOU WANT TO FORWARD MODEL
     pop = Population(berger_kepler_temp['age'], threshold, frac1, frac2)
-    frac_hosts = pop.galactic_occurrence_step(threshold, frac1, frac2)
+    #frac_hosts = pop.galactic_occurrence_step(threshold, frac1, frac2)
+    frac_hosts = pop.galactic_occurrence_monotonic(frac1, frac2)
+    #frac_hosts = pop.galactic_occurrence_piecewise(frac1, frac2, threshold)
 
     alpha_se = np.random.normal(-1., 0.2)
     alpha_sn = np.random.normal(-1.5, 0.1)
@@ -150,59 +198,57 @@ for j in tqdm(range(2)):
 
     # convert back to DataFrame
     berger_kepler_all = pd.DataFrame.from_records(star_data)
-
     
-num_hosts = berger_kepler_all.loc[berger_kepler_all['num_planets']>0]
-f = len(num_hosts)/len(berger_kepler_all)
-print("")
-print("f: ", f)
-print("")
+    num_hosts = berger_kepler_all.loc[berger_kepler_all['num_planets']>0]
+    f = len(num_hosts)/len(berger_kepler_all)
+    fs.append(f)
 
-berger_kepler_all = berger_kepler_all.dropna(subset=['height'])
-berger_kepler_all['age'] = berger_kepler_all['age']
-berger_kepler_all['height'] = berger_kepler_all['height'] * 1000 # to pc
-berger_kepler_all['periods'] = berger_kepler_all['periods'].apply(literal_eval_w_exceptions)
-berger_kepler_all['planet_radii'] = berger_kepler_all['planet_radii'].apply(literal_eval_w_exceptions)
-berger_kepler_all['incls'] = berger_kepler_all['incls'].apply(literal_eval_w_exceptions)
-berger_kepler_all['mutual_incls'] = berger_kepler_all['mutual_incls'].apply(literal_eval_w_exceptions)
-berger_kepler_all['eccs'] = berger_kepler_all['eccs'].apply(literal_eval_w_exceptions)
-berger_kepler_all['omegas'] = berger_kepler_all['omegas'].apply(literal_eval_w_exceptions)
+    berger_kepler_all = berger_kepler_all.dropna(subset=['height'])
+    berger_kepler_all['age'] = berger_kepler_all['age']
+    berger_kepler_all['height'] = berger_kepler_all['height'] * 1000 # to pc
+    berger_kepler_all['periods'] = berger_kepler_all['periods'].apply(literal_eval_w_exceptions)
+    berger_kepler_all['planet_radii'] = berger_kepler_all['planet_radii'].apply(literal_eval_w_exceptions)
+    berger_kepler_all['incls'] = berger_kepler_all['incls'].apply(literal_eval_w_exceptions)
+    berger_kepler_all['mutual_incls'] = berger_kepler_all['mutual_incls'].apply(literal_eval_w_exceptions)
+    berger_kepler_all['eccs'] = berger_kepler_all['eccs'].apply(literal_eval_w_exceptions)
+    berger_kepler_all['omegas'] = berger_kepler_all['omegas'].apply(literal_eval_w_exceptions)
 
-#print(sim[i], berger_kepler_all['height'])
+    #print(sim[i], berger_kepler_all['height'])
 
-berger_kepler_all = berger_kepler_all.loc[(berger_kepler_all['height'] <= 1500) & (berger_kepler_all['age'] <= 13.5)] 
-print("FINAL SAMPLE COUNT: ", len(berger_kepler_all))
+    berger_kepler_all = berger_kepler_all.loc[(berger_kepler_all['height'] <= 1500) & (berger_kepler_all['age'] <= 13.5)] 
+    print("FINAL SAMPLE COUNT: ", len(berger_kepler_all))
 
-#utils.plot_properties(berger_kepler_all['iso_teff'], berger_kepler_all['iso_age'])
-heights.append(np.array(berger_kepler_all['height']))
-ages.append(np.array(berger_kepler_all['age']))
+    #utils.plot_properties(berger_kepler_all['iso_teff'], berger_kepler_all['iso_age'])
+    heights.append(np.array(berger_kepler_all['height']))
+    ages.append(np.array(berger_kepler_all['age']))
 
 
-# RESULT PLOT STUFF
-berger_kepler_all['height_bins'] = pd.cut(berger_kepler_all['height'], bins=height_bins, include_lowest=True)
-berger_kepler_counts = np.array(berger_kepler_all.groupby(['height_bins']).count().reset_index()['kepid'])
+    # RESULT PLOT STUFF
+    berger_kepler_all['height_bins'] = pd.cut(berger_kepler_all['height'], bins=height_bins, include_lowest=True)
+    berger_kepler_counts = np.array(berger_kepler_all.groupby(['height_bins']).count().reset_index()['kepid'])
 
-# isolate planet hosts and bin them by galactic height
-berger_kepler_planets = berger_kepler_all.loc[berger_kepler_all['num_planets'] > 0]
-berger_kepler_planets = berger_kepler_planets.explode(['periods', 'planet_radii', 'incls', 'mutual_incls', 'eccs', 'omegas']).reset_index(drop=True)
-#print("data frame: ", berger_kepler_planets)
-#print(np.array(berger_kepler_planets.groupby(['height_bins']).count().reset_index()['kepid']))
-berger_kepler_planets_counts_precut = np.array(berger_kepler_planets.groupby(['height_bins']).count().reset_index()['kepid'])
-#print(berger_kepler_planets_counts_precut)
-#quit()
-berger_kepler_planets = berger_kepler_planets.loc[(berger_kepler_planets['periods'] <= 40) & (berger_kepler_planets['periods'] > 1)] # limit periods to fairly compare with Zink+ 2023
-berger_kepler_planets = berger_kepler_planets.loc[berger_kepler_planets['planet_radii'] <= 4.] # limit radii to fairly compare with SEs in Zink+ 2023 (2)...or how about include SNs too (4)?
-berger_kepler_planets_counts = np.array(berger_kepler_planets.groupby(['height_bins']).count().reset_index()['kepid'])
+    # isolate planet hosts and bin them by galactic height
+    berger_kepler_planets = berger_kepler_all.loc[berger_kepler_all['num_planets'] > 0]
+    berger_kepler_planets = berger_kepler_planets.explode(['periods', 'planet_radii', 'incls', 'mutual_incls', 'eccs', 'omegas']).reset_index(drop=True)
+    #print("data frame: ", berger_kepler_planets)
+    #print(np.array(berger_kepler_planets.groupby(['height_bins']).count().reset_index()['kepid']))
+    berger_kepler_planets_counts_precut = np.array(berger_kepler_planets.groupby(['height_bins']).count().reset_index()['kepid'])
+    #print(berger_kepler_planets_counts_precut)
+    #quit()
+    berger_kepler_planets = berger_kepler_planets.loc[(berger_kepler_planets['periods'] <= 40) & (berger_kepler_planets['periods'] > 1)] # limit periods to fairly compare with Zink+ 2023
+    berger_kepler_planets = berger_kepler_planets.loc[berger_kepler_planets['planet_radii'] <= 4.] # limit radii to fairly compare with SEs in Zink+ 2023 (2)...or how about include SNs too (4)?
+    berger_kepler_planets_counts = np.array(berger_kepler_planets.groupby(['height_bins']).count().reset_index()['kepid'])
 
-physical_planet_occurrence = 100 * berger_kepler_planets_counts/berger_kepler_counts # normally yes
-physical_planet_occurrences.append(physical_planet_occurrence)
+    physical_planet_occurrence = 100 * berger_kepler_planets_counts/berger_kepler_counts # normally yes
+    physical_planet_occurrences.append(physical_planet_occurrence)
+    print("physical planet occurrences: ", physical_planet_occurrences)
 
 detected_planet_occurrences = []
 adjusted_planet_occurrences = []
 transit_multiplicities = []
 geom_transit_multiplicities = []
 
-for i in range(2):  # 10
+for i in range(1):  # 10
 
     #berger_kepler_planets_temp = berger_kepler_planets
 
@@ -314,14 +360,18 @@ zink_kepler_occurrence_err1 = np.round(np.sqrt((zink_sn_kepler['occurrence_err1'
 zink_kepler_occurrence_err2 = np.round(np.sqrt((zink_sn_kepler['occurrence_err2'])**2 + (zink_se_kepler['occurrence_err2']**2)), 2)
 zink_kepler = pd.DataFrame({'scale_height': np.array([120., 200., 300., 500., 800.]), 'occurrence': zink_kepler_occurrence, 'occurrence_err1': zink_kepler_occurrence_err1, 'occurrence_err2': zink_kepler_occurrence_err2})
 
-print(physical_planet_occurrences)
+print("")
+print("fs: ", fs)
+print("")
+print("physical_planet_occurrences: ", physical_planet_occurrences)
+
 mean_physical_planet_occurrences = np.mean(physical_planet_occurrences, axis=0)
 yerr = np.std(physical_planet_occurrences, axis=0)
 print("mean physical planet occurrences, and yerr: ", mean_physical_planet_occurrences, yerr)
 
 mean_recovered_planet_occurrences = 100 * np.mean(adjusted_planet_occurrences_all, axis=0)
-yerr = 100 * np.std(adjusted_planet_occurrences_all, axis=0)
-print("recovered planet occurrences, and yerr: ", mean_recovered_planet_occurrences, yerr)
+yerr_recovered = 100 * np.std(adjusted_planet_occurrences_all, axis=0)
+print("recovered planet occurrences, and yerr: ", mean_recovered_planet_occurrences, yerr_recovered)
 
 z_max = np.logspace(2, 3, 100)
 def model(x, tau, occurrence):
@@ -427,6 +477,7 @@ ax1.errorbar(x=zink_kepler['scale_height'], y=zink_kepler['occurrence'], yerr=(z
 # our simulated data
 ax1.errorbar(x=zink_kepler['scale_height'], y=mean_physical_planet_occurrences, yerr=yerr, fmt='o', capsize=3, elinewidth=1, markeredgewidth=1, color='#03acb1', alpha=0.5, label='model yield')
 
+#"""
 # plot our best fit posteriors
 our_yield_max = []
 our_yield_min = []
@@ -446,6 +497,7 @@ for temp_list2 in zip_longest(*our_models):
 print("OUR YIELD: ", our_models)
 print(len(our_models))
 ax1.fill_between(z_max, our_yield_max, our_yield_min, color='#03acb1', alpha=0.3, label='model best-fit posteriors') 
+#"""
 
 ax1.set_xlim([100, 1000])
 ax1.set_ylim([6, 100])
@@ -466,6 +518,16 @@ ax1.legend(loc='upper left', bbox_to_anchor=[1.0, 1.05])
 # step model
 x = np.linspace(0, 14, 1000)
 y = np.where(x <= threshold, frac1, frac2)
+
+# FOR MONOTONIC MDOEL, PASS AX OBJECT TO UTILS.PLOT_MODELS()
+#utils.plot_models(frac1, frac2, ax2)
+b = frac1
+m = (frac2 - frac1)/(x[-1] - x[0])
+y = b + m * x
+
+# piecewise model
+#m = (frac2 - frac1)/(x[-1] - threshold)
+#y = np.where(x < threshold, frac1, frac1 + m * (x-threshold))
 
 ax2.plot(x, y, color='powderblue')
 ax2.set_xlabel('cosmic age [Gyr]')

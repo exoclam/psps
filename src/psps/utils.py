@@ -23,7 +23,8 @@ def plot_properties(teffs, ages):
     Make 2-subplot figure showing distributions of Teff and age. Tentatively Figs 1 & 2, in Paper III
 
     Input: 
-    - 
+    - teffs: np array of effective temps [K]
+    - ages: np array of stellar ages [Gyr]
 
     """
 
@@ -62,5 +63,55 @@ def plot_properties(teffs, ages):
 
     plt.savefig(path+'plots/sample_properties_trilegal_heights_only.pdf', format='pdf')
     plt.show()
+
+    return
+
+
+def plot_models(thresholds, frac1s, frac2s, ax=None):
+    """
+    Make Fig 3 in Paper III, ie. a sample of the step function models for which we later show results 
+    
+    Inputs:
+    - thresholds: list of time at which f1 goes to f2 (cosmic age) [Gyr]
+    - frac1s: list of initial planet host fraction, before threshold
+    - frac2s: list of planet host fraction after threshold
+    - ax: matplotlib ax object, for modular plotting
+
+    """
+    
+    x = np.linspace(0, 14, 1000)
+    if ax is None:
+        # step model
+        for i in range(len(frac1s)):
+            threshold = thresholds[i]
+            frac1 = frac1s[i]
+            frac2 = frac2s[i]
+
+            y = np.where(x <= threshold, frac1, frac2)
+
+            plt.plot(x, y, color='powderblue')
+            plt.xlabel('cosmic age [Gyr]')
+            plt.ylabel('planet host fraction')
+            plt.ylim([0,1])
+
+        plt.savefig(path+'plots/models.png', format='png', bbox_inches='tight')
+        plt.show()
+
+    else:
+        # general models
+        for i in range(len(frac1s)):
+            frac1 = frac1s[i]
+            frac2 = frac2s[i]
+
+            b = frac1
+            m = (frac2 - frac1)/(x[-1] - x[0])
+            y = b + m * x
+
+        ax.plot(x, y, color='powderblue')
+        ax.set_xlabel('cosmic age [Gyr]')
+        ax.set_ylabel('planet host fraction')
+        ax.set_ylim([0,1])
+
+        return ax            
 
     return

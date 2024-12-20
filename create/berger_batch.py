@@ -64,13 +64,14 @@ model_flag = 'rayleigh'
 
 # planet formation history model parameters
 threshold = 9.5 # cosmic age in Gyr; 13.7 minus stellar age, then round
-frac1 = 0.25 # frac1 must be < frac2 if comparing cosmic ages
-frac2 = 0.75
+frac1 = 0.05 # frac1 must be < frac2 if comparing cosmic ages
+frac2 = 0.5
 
 name_thresh = 95
-name_f1 = 25
-name_f2 = 75
-name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
+name_f1 = 5
+name_f2 = 50
+#name = 'step'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
+name = 'monotonic_'+str(name_f1)+'_'+str(name_f2)
 
 # send da video
 physical_planet_occurrences = []
@@ -101,7 +102,8 @@ for j in tqdm(range(30)):
     ### create a Population object to hold information about the occurrence law governing that specific population
     # THIS IS WHERE YOU CHOOSE THE PLANET FORMATION HISTORY MODEL YOU WANT TO FORWARD MODEL
     pop = Population(berger_kepler_temp['age'], threshold, frac1, frac2)
-    frac_hosts = pop.galactic_occurrence_step(threshold, frac1, frac2)
+    #frac_hosts = pop.galactic_occurrence_step(threshold, frac1, frac2)
+    frac_hosts = pop.galactic_occurrence_monotonic(frac1, frac2)
 
     alpha_se = np.random.normal(-1., 0.2)
     alpha_sn = np.random.normal(-1.5, 0.1)
