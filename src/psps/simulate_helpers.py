@@ -1362,6 +1362,38 @@ def adjust_for_completeness(df, completeness_map, radius_grid, period_grid, flag
 
     return adjusted_count, df_piv
 
+def adjust_for_completeness2(df, completeness_map, radius_grid, period_grid):
+    
+    """
+    For a given DataFrame of planets, group by radius and period bins, then take completeness map and adjust transit_status counts per cell
+
+    Inputs:
+    - df: DataFrame of planets
+    - completeness map: completeness map of detected vs generated planets, grouped by radius and period bins
+    - radius_grid: list of radius bins
+    - period_grid: list of period bins
+    - flag: DataFrame of either raw or detected planets, labeled "physical" or "detected"
+
+    Output:
+    - adjusted_count: completeness-adjusted count of planets
+    - piv: radius-and-period divided occurrence
+
+    """
+    
+    # new, experimental way of applying completeness map
+    df['radius_bins'] = pd.cut(df['planet_radii'], bins=radius_grid, include_lowest=True)
+    df['period_bins'] = pd.cut(df['periods'], bins=period_grid, include_lowest=True)
+    df_small = df[['radius_bins', 'period_bins', 'transit_status']]
+    
+    # make sure both maps are oriented the same way
+    df_small = df_small.groupby(['radius_bins','period_bins']).sum(['transit_status']).reset_index()
+    df_piv = df_small.pivot(index='radius_bins', columns='period_bins', values='transit_status')
+    piv = df_piv.to_numpy()
+    piv = np.flip(piv, axis=0)/completeness_map
+    adjusted_count = np.nansum(piv)
+
+    return adjusted_count, piv
+
 def collect_age_histograms(df, f=1.):
 
     """

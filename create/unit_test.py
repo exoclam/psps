@@ -59,7 +59,7 @@ def literal_eval_w_exceptions(x):
 berger_kepler = pd.read_csv(path+'data/berger_kepler_stellar_fgk.csv') # crossmatched with Gaia via Bedell
 
 # Berger+ 2020 sample has lots of stellar params we need, but no source_id
-berger = Table.read(path+'data/berger_kepler_stellar_fgk.csv')
+berger = Table.read(path+'data/berger_kepler_stellar_fgk.csv', data_end=20000) # turn off data_end when not testing heights
 # Bedell cross-match has the Gaia DR3 source_id we need to calculate Zmax with Gala
 megan = Table.read(path+'data/kepler_dr3_good.fits')
 
@@ -68,6 +68,32 @@ merged = join(berger, megan, keys='kepid')
 merged.rename_column('parallax_2', 'parallax')
 
 berger_kepler = berger_kepler.loc[berger_kepler['kepid'].isin(merged['kepid'])]
+berger_kepler['height'] = pd.read_csv(path+'data/zmaxes.csv')[:len(berger_kepler)]
+
+"""
+### PLOT COMPLETENESS MAP
+#completeness_map = utils.completeness(berger_kepler).T # I did this on HPG. It took 11 hours.
+completeness_map = pd.read_csv(path+'data/completeness_map_empirical.csv') # _empirical was done on the first detected iterations of each of the 30 Populations, averaged together
+completeness_map_np = completeness_map.to_numpy()
+completeness_map_np = np.flip(completeness_map_np, axis=0)
+print(completeness_map_np)
+#completeness_map_df = pd.DataFrame(completeness_map, columns=np.logspace(np.log10(2), np.log10(300), 9), index=np.linspace(1, 4, 9))
+#print(completeness_map_df)
+
+plt.figure(figsize=(10, 5)) 
+a = plt.imshow(completeness_map_np, cmap='Purples', interpolation='none', extent=[2,300,1,4])
+plt.xlabel('period [days]')
+plt.ylabel(r'$R_p$ [$R_{\oplus}$]') 
+plt.xscale('log')
+plt.colorbar(a, label='completeness')
+plt.savefig(path+'plots/completeness_map_empirical.png', format='png', bbox_inches='tight')
+plt.show()
+quit()
+"""
+
+completeness_map = pd.read_csv(path+'data/completeness_map.csv')
+completeness_map_np = completeness_map.to_numpy()
+completeness_map_np = np.flip(completeness_map_np, axis=0)
 
 """
 ### TEST F1 AND F2 PER THRESHOLD (this is not a useful exercise)
@@ -101,18 +127,19 @@ quit()
 model_flag = 'rayleigh'
 
 # planet formation history model parameters
-threshold = 5. # cosmic age in Gyr; 13.7 minus stellar age, then round
-frac1 = 0.1 # frac1 must be < frac2 if comparing cosmic ages
-frac2 = 0.4 # 0.55 led to f=0.3, high Z being too high, low Z being a bit low; yet, 0.6 led to f=0.23...?
+threshold = 11.5 # cosmic age in Gyr; 13.7 minus stellar age, then round
+frac1 = 0.2 # frac1 must be < frac2 if comparing cosmic ages
+frac2 = 0.85 # 0.55 led to f=0.3, high Z being too high, low Z being a bit low; yet, 0.6 led to f=0.23...?
 # 10, 0.15, 0.55 led to f=0.28, high Z being fine, low Z being a bit low; 10, 0.15, 0.6, f=0.3, low Z too high, high Z too low --> 10, 0.25, 0.5, led to f=0.34, low Z too low, high Z too high (basically flat) --> 10, 0.2, 0.6, led to f=0.34 and basically flat --> 10, 0.1, 0.7, f=0.31, low Z is good, high Z is a bit high --> 10, 0.05, 0.7, f=0.28, perfect match tho
 # 5.5, 0.01, 0.4 led to f=0.3, flat line with high Z just above, low Z being way too low
 # 12, 0.15, 0.7 led to f=0.21, low Z is way too low --> 12, 0.2, 0.85 led to f=0.28, low Z almost there --> 12, 0.25, 0.9 led to f=0.33, perfect low Z, high Z a bit high --> 12, 0.2, 0.9 led to f=0.28, low Z a bit low again.
 # 11, 0.2, 0.9 led to f=0.36, everything too high --> 11, 0.15, 0.85, led to f=0.31, low Z a bit high --> 11, 0.15, 0.8, led to f=0.3, as close as I can get
 
-# monotonic: 0, 0.8 --> f=0.47, medium and high Z way too high (basically flat); 0, 0.6 --> f=0.36, still flat, low Z a bit under, high Z still high; 0.05, 0.5 --> f=0.32, flat, low Z low, high Z high; 0.01, 0.55 --> f=0.32, flat as usual; 0.1, 0.4 --> f=
+# monotonic: 0, 0.8 --> f=0.47, medium and high Z way too high (basically flat); 0, 0.6 --> f=0.36, still flat, low Z a bit under, high Z still high; 0.05, 0.5 --> f=0.32, flat, low Z low, high Z high; 0.01, 0.55 --> f=0.32, flat as usual; 0.1, 0.4 --> f=0.28 (flat)
 
 # piecewise: 0.1, 0.6, 10 --> f=0.18, much too low; 0.1, 0.6, 5 --> f=0.3, low Z a bit low, high Z a bit high; 0.15, 0.55, 6 --> f=0.29, basically flat; 0.05, 0.65, 5 --> f=0.29, still flat; 0.05, 0.7, 5 --> f=0.31, low Z a bit low, high Z a bit high, the closest we've gotten  
-
+# piecewise: 7.5, 0.1, 0.8 --> f=0.3; 7, 0.05, 0.85 --> f=0.3 (good match, low Z a tad low);  7, 0.01, 0.9 --> f=0.28 (low Z a bit low, high Z a bit high); 8, 0.01, 0.9 --> f=0.24 (model fit was perfect, but low Z was actually too low)
+# piecewise: 7.5, 0.01, 0.9 --> f=0.27 (lowest Z is low, all else perfect); 7.5, 0.01, 0.95 --> f=0.28 (flat, way off); 7.5, 0.03, 0.9 --> f=0.28 (flat, way off); 7.5, 0.05, 0.9 --> f=0.30 (better, if only lowest Z was a tad higher); 7.5, 0.1, 0.9 --> f=0.33 (flat, but bc the middle point is the only one that's too high)
 """
 # make Fig 3 for Paper III, in order to show a sample platter of step function models
 thresholds = np.array([12, 11.5, 11, 9.5, 7.5, 5.5])
@@ -122,9 +149,9 @@ utils.plot_models(thresholds, f1s, f2s)
 quit()
 """
 
-name_thresh = 95
-name_f1 = 5
-name_f2 = 65
+name_thresh = 115
+name_f1 = 20
+name_f2 = 85
 name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 
 heights = []
@@ -141,8 +168,23 @@ completeness_all = []
 period_grid = np.logspace(np.log10(2), np.log10(300), 10)
 radius_grid = np.linspace(1, 4, 10)
 height_bins = np.array([0., 150, 250, 400, 650, 3000])
+height_bins = np.linspace(0, 1500, 10)
+
+"""
+# histogram of heights
+berger_kepler['height'] = berger_kepler['height'] * 1000
+berger_kepler = berger_kepler.loc[berger_kepler['height'] <= 1500]
+plt.hist(berger_kepler['height'], bins=height_bins)
+plt.show()
+quit()
+"""
+
+#height_bins = np.linspace(0, 1500, 31)
 # for each model, draw around stellar age errors 10 times
-for j in tqdm(range(2)): 
+for j in tqdm(range(1)): 
+
+    #berger_kepler['iso_age_err1'] = berger_kepler['iso_age_err1'] * 2
+    #berger_kepler['iso_age_err2'] = berger_kepler['iso_age_err2'] * 2
 
     # draw stellar radius, mass, and age using asymmetric errors 
     berger_kepler_temp = simulate_helpers.draw_asymmetrically(berger_kepler, 'iso_rad', 'iso_rad_err1', 'iso_rad_err2', 'stellar_radius')
@@ -162,8 +204,8 @@ for j in tqdm(range(2)):
     ### create a Population object to hold information about the occurrence law governing that specific population
     # THIS IS WHERE YOU CHOOSE THE PLANET FORMATION HISTORY MODEL YOU WANT TO FORWARD MODEL
     pop = Population(berger_kepler_temp['age'], threshold, frac1, frac2)
-    #frac_hosts = pop.galactic_occurrence_step(threshold, frac1, frac2)
-    frac_hosts = pop.galactic_occurrence_monotonic(frac1, frac2)
+    frac_hosts = pop.galactic_occurrence_step(threshold, frac1, frac2)
+    #frac_hosts = pop.galactic_occurrence_monotonic(frac1, frac2)
     #frac_hosts = pop.galactic_occurrence_piecewise(frac1, frac2, threshold)
 
     alpha_se = np.random.normal(-1., 0.2)
@@ -222,7 +264,6 @@ for j in tqdm(range(2)):
     heights.append(np.array(berger_kepler_all['height']))
     ages.append(np.array(berger_kepler_all['age']))
 
-
     # RESULT PLOT STUFF
     berger_kepler_all['height_bins'] = pd.cut(berger_kepler_all['height'], bins=height_bins, include_lowest=True)
     berger_kepler_counts = np.array(berger_kepler_all.groupby(['height_bins']).count().reset_index()['kepid'])
@@ -248,9 +289,7 @@ adjusted_planet_occurrences = []
 transit_multiplicities = []
 geom_transit_multiplicities = []
 
-for i in range(1):  # 10
-
-    #berger_kepler_planets_temp = berger_kepler_planets
+for i in range(5):  # 10
 
     ### Simulate detections from these synthetic systems
     prob_detections, transit_statuses, sn, geom_transit_statuses = simulate_transit.calculate_transit_vectorized(berger_kepler_planets.periods, 
@@ -279,12 +318,34 @@ for i in range(1):  # 10
     # Read in pre-generated population
     #transiters_berger_kepler = pd.read_csv(path+'galactic-occurrence/systems/berger_kepler_planets_detected_'+str(i)+'.csv')
 
+    berger_kepler_planets1 = berger_kepler_planets.loc[berger_kepler_planets['height'] <= 150]
+    berger_kepler_planets2 = berger_kepler_planets.loc[(berger_kepler_planets['height'] > 150) & (berger_kepler_planets['height'] <= 250)]
+    berger_kepler_planets3 = berger_kepler_planets.loc[(berger_kepler_planets['height'] > 250) & (berger_kepler_planets['height'] <= 400)]
+    berger_kepler_planets4 = berger_kepler_planets.loc[(berger_kepler_planets['height'] > 400) & (berger_kepler_planets['height'] <= 650)]
+    berger_kepler_planets5 = berger_kepler_planets.loc[berger_kepler_planets['height'] > 650]
+
     ### Completeness
-    # Calculate completeness map
+    # Calculate completeness map(s)
     completeness_map, piv_physical, piv_detected = simulate_helpers.completeness(berger_kepler_planets, berger_kepler_transiters)
     completeness_threshold = 0.01 # completeness threshold under which period/radius cell is not counted; 0.5% results in full recovery, but let's round up to 1%
     completeness_map = completeness_map.mask(completeness_map < completeness_threshold) # assert that completeness fractions lower than 1% are statistically insignificant
-    completeness_all.append(completeness_map)
+    print(completeness_map)
+
+
+    # new, experimental way of applying completeness map
+    berger_kepler_transiters['radius_bins'] = pd.cut(berger_kepler_transiters['planet_radii'], bins=radius_grid, include_lowest=True)
+    berger_kepler_transiters['period_bins'] = pd.cut(berger_kepler_transiters['periods'], bins=period_grid, include_lowest=True)
+    df_small = berger_kepler_transiters[['radius_bins', 'period_bins', 'transit_status']]
+    
+    df_small = df_small.groupby(['radius_bins','period_bins']).sum(['transit_status']).reset_index()
+    df_piv = df_small.pivot(index='radius_bins', columns='period_bins', values='transit_status')
+    df_piv = df_piv.to_numpy()/completeness_map_np
+    len_berger_kepler_transiters = np.nansum(df_piv)
+
+    #len_berger_kepler_transiters, df_piv = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters, pd.DataFrame(completeness_map_np), radius_grid, period_grid)
+    print(len_berger_kepler_transiters, df_piv)
+    print(len_berger_kepler_transiters/berger_kepler_counts)
+
     ### this is to find the threshold beyond which I can fully recover the physical yield using the detected yield and completeness map
     #print("physical: ", simulate_helpers.adjust_for_completeness(berger_kepler_planets, completeness_map, radius_grid, period_grid, flag='physical'))
     #print("detected, adjusted: ", simulate_helpers.adjust_for_completeness(berger_kepler_transiters, completeness_map, radius_grid, period_grid, flag='detected'))
@@ -319,14 +380,40 @@ for i in range(1):  # 10
     #print(len(berger_kepler_planets))
     #print(len(berger_kepler_transiters))
     #print(simulate_helpers.adjust_for_completeness(berger_kepler_transiters, completeness_map, radius_grid, period_grid))
+    berger_kepler_transiters1 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 0) & (berger_kepler_transiters['height'] <= 150)]
+    berger_kepler_transiters2 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 150) & (berger_kepler_transiters['height'] <= 300)]
+    berger_kepler_transiters3 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 300) & (berger_kepler_transiters['height'] <= 450)]
+    berger_kepler_transiters4 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 450) & (berger_kepler_transiters['height'] <= 600)]
+    berger_kepler_transiters5 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 600) & (berger_kepler_transiters['height'] <= 750)]
+    berger_kepler_transiters6 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 750) & (berger_kepler_transiters['height'] <= 900)]
+    berger_kepler_transiters7 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 900) & (berger_kepler_transiters['height'] <= 1050)]
+    berger_kepler_transiters8 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 1050) & (berger_kepler_transiters['height'] <= 1200)]
+    berger_kepler_transiters9 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 1200) & (berger_kepler_transiters['height'] <= 1350)]
 
-    len_berger_kepler_transiters1, _ = simulate_helpers.adjust_for_completeness(berger_kepler_transiters1, completeness_map, radius_grid, period_grid)
-    len_berger_kepler_transiters2, _ = simulate_helpers.adjust_for_completeness(berger_kepler_transiters2, completeness_map, radius_grid, period_grid)
-    len_berger_kepler_transiters3, _ = simulate_helpers.adjust_for_completeness(berger_kepler_transiters3, completeness_map, radius_grid, period_grid)
-    len_berger_kepler_transiters4, _ = simulate_helpers.adjust_for_completeness(berger_kepler_transiters4, completeness_map, radius_grid, period_grid)
-    len_berger_kepler_transiters5, _ = simulate_helpers.adjust_for_completeness(berger_kepler_transiters5, completeness_map, radius_grid, period_grid)
-    len_berger_kepler_transiters = np.array([len_berger_kepler_transiters1, len_berger_kepler_transiters2, len_berger_kepler_transiters3, len_berger_kepler_transiters4, len_berger_kepler_transiters5])
+    #berger_kepler_transiters1['radius_bins'] = pd.cut(berger_kepler_transiters1['planet_radii'], bins=radius_grid, include_lowest=True)
+    #berger_kepler_transiters1['period_bins'] = pd.cut(berger_kepler_transiters1['periods'], bins=period_grid, include_lowest=True)
+    #df_small = berger_kepler_transiters1[['radius_bins', 'period_bins', 'transit_status']]
+    #df_small = df_small.groupby(['radius_bins','period_bins']).sum(['transit_status']).reset_index()
+    #df_piv = df_small.pivot(index='radius_bins', columns='period_bins', values='transit_status')
+    #print(df_piv)
+    #print(completeness_map)
+    #quit()
+
+    len_berger_kepler_transiters1, df_piv1 = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters1, completeness_map_np, radius_grid, period_grid)
+    len_berger_kepler_transiters2, df_piv2 = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters2, completeness_map_np, radius_grid, period_grid)
+    len_berger_kepler_transiters3, df_piv3 = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters3, completeness_map_np, radius_grid, period_grid)
+    len_berger_kepler_transiters4, df_piv4 = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters4, completeness_map_np, radius_grid, period_grid)
+    len_berger_kepler_transiters5, df_piv5 = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters5, completeness_map_np, radius_grid, period_grid)
+    len_berger_kepler_transiters6, df_piv6 = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters6, completeness_map_np, radius_grid, period_grid)
+    len_berger_kepler_transiters7, df_piv7 = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters7, completeness_map_np, radius_grid, period_grid)
+    len_berger_kepler_transiters8, df_piv8 = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters8, completeness_map_np, radius_grid, period_grid)
+    len_berger_kepler_transiters9, df_piv9 = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters9, completeness_map_np, radius_grid, period_grid)
+    len_berger_kepler_transiters = np.array([len_berger_kepler_transiters1, len_berger_kepler_transiters2, len_berger_kepler_transiters3, len_berger_kepler_transiters4, len_berger_kepler_transiters5, len_berger_kepler_transiters6, len_berger_kepler_transiters7, len_berger_kepler_transiters8, len_berger_kepler_transiters9])
     
+    ### what if we split height bins into 10 evenly-spaced bins
+    berger_kepler_transiters['height_bins'] = pd.cut(berger_kepler_transiters['height'], bins=height_bins, include_lowest=True)
+
+
     adjusted_planet_occurrence = len_berger_kepler_transiters/berger_kepler_counts
     adjusted_planet_occurrences_all.append(adjusted_planet_occurrence)
 
@@ -363,15 +450,28 @@ zink_kepler = pd.DataFrame({'scale_height': np.array([120., 200., 300., 500., 80
 print("")
 print("fs: ", fs)
 print("")
-print("physical_planet_occurrences: ", physical_planet_occurrences)
 
 mean_physical_planet_occurrences = np.mean(physical_planet_occurrences, axis=0)
 yerr = np.std(physical_planet_occurrences, axis=0)
 print("mean physical planet occurrences, and yerr: ", mean_physical_planet_occurrences, yerr)
 
+mean_detected_planet_occurrences = np.mean(detected_planet_occurrences_all, axis=0)
+yerr_detected = np.std(detected_planet_occurrences_all, axis=0)
+
+print("recovered planet occurrences: ", adjusted_planet_occurrences_all)
+
 mean_recovered_planet_occurrences = 100 * np.mean(adjusted_planet_occurrences_all, axis=0)
 yerr_recovered = 100 * np.std(adjusted_planet_occurrences_all, axis=0)
-print("recovered planet occurrences, and yerr: ", mean_recovered_planet_occurrences, yerr_recovered)
+print("mean recovered planet occurrences, and yerr: ", mean_recovered_planet_occurrences, yerr_recovered)
+
+print("transit multiplicities: ", transit_multiplicities_all)
+
+plt.errorbar(np.array(height_bins[1:]), mean_recovered_planet_occurrences, yerr_recovered, fmt='o', label='recovered')
+plt.errorbar(np.array(height_bins[1:]), mean_detected_planet_occurrences*100, yerr_detected, fmt='o', label='detected')
+plt.errorbar(np.array(height_bins[1:]), mean_physical_planet_occurrences, yerr, fmt='o', label='true')
+plt.legend()
+plt.show()
+quit()
 
 z_max = np.logspace(2, 3, 100)
 def model(x, tau, occurrence):
@@ -401,7 +501,6 @@ def power_model(x, yerr, y=None):
     #print("tau: ", tau)
     #print("occurrence: ", occurrence)
     #print("sample model: ", model(z_max, tau, occurrence))
-    
     with numpyro.plate("data", len(x)):
         numpyro.sample("planet_yield", dist.Normal(planet_yield, yerr), obs=y)
 
@@ -414,7 +513,8 @@ init_params = {
 run_optim = numpyro_ext.optim.optimize(
         power_model, init_strategy=numpyro.infer.init_to_median()
     )
-opt_params = run_optim(jax.random.PRNGKey(5), np.array(zink_kepler['scale_height']), yerr, y=mean_physical_planet_occurrences)
+#opt_params = run_optim(jax.random.PRNGKey(5), np.array(height_bins[1:]), yerr, y=mean_physical_planet_occurrences)
+opt_params = run_optim(jax.random.PRNGKey(5), np.array(height_bins[1:]), yerr, y=mean_recovered_planet_occurrences)
 print("opt params: ", opt_params)
 
 # sample posteriors for best-fit model to simulated data
@@ -428,7 +528,8 @@ sampler = infer.MCMC(
     progress_bar=True,
 )
 
-sampler.run(jax.random.PRNGKey(0), np.array(zink_kepler['scale_height']), yerr, y=mean_physical_planet_occurrences)
+#sampler.run(jax.random.PRNGKey(0), np.array(zink_kepler['scale_height']), yerr, y=mean_physical_planet_occurrences)
+sampler.run(jax.random.PRNGKey(0), np.array(zink_kepler['scale_height']), yerr, y=mean_recovered_planet_occurrences)
 inf_data = az.from_numpyro(sampler)
 print(az.summary(inf_data))
 
@@ -475,7 +576,8 @@ ax1.fill_between(z_max, yield_max, yield_min, color='red', alpha=0.3, label='Zin
 ax1.errorbar(x=zink_kepler['scale_height'], y=zink_kepler['occurrence'], yerr=(zink_kepler['occurrence_err1'], zink_kepler['occurrence_err2']), fmt='o', color='red', alpha=0.5, capsize=3, elinewidth=1, markeredgewidth=1, label='Zink+ 2023 Kepler data')
 
 # our simulated data
-ax1.errorbar(x=zink_kepler['scale_height'], y=mean_physical_planet_occurrences, yerr=yerr, fmt='o', capsize=3, elinewidth=1, markeredgewidth=1, color='#03acb1', alpha=0.5, label='model yield')
+#ax1.errorbar(x=zink_kepler['scale_height'], y=mean_physical_planet_occurrences, yerr=yerr, fmt='o', capsize=3, elinewidth=1, markeredgewidth=1, color='#03acb1', alpha=0.5, label='model yield')
+ax1.errorbar(x=zink_kepler['scale_height'], y=mean_recovered_planet_occurrences, yerr=yerr, fmt='o', capsize=3, elinewidth=1, markeredgewidth=1, color='#03acb1', alpha=0.5, label='model yield')
 
 #"""
 # plot our best fit posteriors
@@ -526,8 +628,8 @@ m = (frac2 - frac1)/(x[-1] - x[0])
 y = b + m * x
 
 # piecewise model
-#m = (frac2 - frac1)/(x[-1] - threshold)
-#y = np.where(x < threshold, frac1, frac1 + m * (x-threshold))
+m = (frac2 - frac1)/(x[-1] - threshold)
+y = np.where(x < threshold, frac1, frac1 + m * (x-threshold))
 
 ax2.plot(x, y, color='powderblue')
 ax2.set_xlabel('cosmic age [Gyr]')
@@ -535,4 +637,5 @@ ax2.set_ylabel('planet host fraction')
 ax2.set_ylim([0,1])
 
 fig.tight_layout()
+plt.savefig(path+'plots/model_vs_zink_'+name+'_recovered.png', format='png', bbox_inches='tight')
 plt.show()

@@ -15,6 +15,11 @@ pylab.rcParams.update(pylab_params)
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
+
+from psps.transit_class import Population, Star
+import psps.simulate_helpers as simulate_helpers
+import psps.simulate_transit as simulate_transit
 
 path = '/Users/chrislam/Desktop/psps/' 
 
@@ -115,3 +120,105 @@ def plot_models(thresholds, frac1s, frac2s, ax=None):
         return ax            
 
     return
+
+def completeness(berger_kepler):
+    """"
+    Build completeness map to characterize psps detection pipeline
+
+    - For each {period, radius} bin, simulate 100 planetary systems
+    - Calculate how many are geometric transits
+    - Calculate how many are detections
+    - Output completeness map that can be used to back out "true" occurrence, a la IDEM method, eg. Dressing & Charbonneau 2015
+    (https://iopscience.iop.org/article/10.1088/0004-637X/807/1/45/meta#apj515339s7)
+
+    The result should resemble similar maps for FGK dwarfs.
+
+    """
+
+    # mise en place
+    period_grid = np.logspace(np.log10(2), np.log10(300), 10)
+    radius_grid = np.linspace(1, 4, 10)
+    completeness_map = np.ndarray((9, 9))
+    
+    frac_hosts = np.ones(len(berger_kepler))
+
+    for p_elt, p in tqdm(enumerate(period_grid[:-1])):
+        for r_elt, r in enumerate(radius_grid[:-1]):
+            star_data = []
+            alpha_se = np.random.normal(-1., 0.2)
+            alpha_sn = np.random.normal(-1.5, 0.1)
+
+            # draw stellar radius, mass, and age using asymmetric errors 
+            berger_kepler_temp = simulate_helpers.draw_asymmetrically(berger_kepler, 'iso_rad', 'iso_rad_err1', 'iso_rad_err2', 'stellar_radius')
+            berger_kepler_temp = simulate_helpers.draw_asymmetrically(berger_kepler_temp, 'iso_age', 'iso_age_err1', 'iso_age_err2', 'age')
+            berger_kepler_temp = simulate_helpers.draw_asymmetrically(berger_kepler_temp, 'iso_mass', 'iso_mass_err1', 'iso_mass_err2', 'stellar_mass')
+
+            for i in range(len(berger_kepler)):
+                # create one planet with {p, r} in that system
+                star = Star(berger_kepler_temp['age'][i], berger_kepler_temp['stellar_radius'][i], berger_kepler_temp['stellar_mass'][i], berger_kepler_temp['rrmscdpp06p0'][i], frac_hosts[i], berger_kepler_temp['height'][i], alpha_se, alpha_sn, berger_kepler_temp['kepid'][i])
+                star_update = {
+                    'kepid': star.kepid,
+                    'age': star.age,
+                    'stellar_radius': star.stellar_radius,
+                    'stellar_mass': star.stellar_mass,
+                    'rrmscdpp06p0': star.rrmscdpp06p0,
+                    'frac_host': star.frac_host,
+                    'height': star.height,
+                    'midplane': star.midplane,
+                    'prob_intact': star.prob_intact,
+                    'status': star.status,
+                    'sigma_incl': star.sigma_incl,
+                    'num_planets': star.num_planets,
+                    'periods': star.periods,
+                    'incls': star.incls,
+                    'mutual_incls': star.mutual_incls,
+                    'eccs': star.eccs,
+                    'omegas': star.omegas,
+                    'planet_radii': star.planet_radii
+                }
+                
+                # re-assign planet period and radius to the appropriate grid element
+                period = np.random.uniform(p, period_grid[p_elt+1])
+                radius = np.random.uniform(r, radius_grid[r_elt+1])
+                star_update['planet_radii'] = radius
+                star_update['periods'] = period
+                
+                star_update['incls'] = star_update['incls'][0]
+                star_update['mutual_incls'] = star_update['mutual_incls'][0]
+                star_update['eccs'] = star_update['eccs'][0]
+                star_update['omegas'] = star_update['omegas'][0]
+
+                star_data.append(star_update)
+
+            # convert back to DataFrame
+            berger_kepler_all = pd.DataFrame.from_records(star_data)
+
+            # calculate geometric transits and detections
+            prob_detections, transit_statuses, sn, geom_transit_statuses = simulate_transit.calculate_transit_vectorized(berger_kepler_all.periods, 
+                                            berger_kepler_all.stellar_radius, berger_kepler_all.planet_radii,
+                                            berger_kepler_all.eccs, 
+                                            berger_kepler_all.incls, 
+                                            berger_kepler_all.omegas, berger_kepler_all.stellar_mass,
+                                            berger_kepler_all.rrmscdpp06p0, angle_flag=True) 
+
+            berger_kepler_all['transit_status'] = transit_statuses[0]
+            berger_kepler_all['prob_detections'] = prob_detections[0]
+            berger_kepler_all['sn'] = sn
+            berger_kepler_all['geom_transit_status'] = geom_transit_statuses
+
+                # need kepid to be str or tuple, else unhashable type when groupby.count()
+            berger_kepler_all['kepid'] = berger_kepler_all['kepid'].apply(str) 
+            #print(berger_kepler_all[['planet_radii', 'periods', 'transit_status']])
+            #print(berger_kepler_all.loc[berger_kepler_all['transit_status']==1][['planet_radii', 'periods', 'transit_status']])
+            #quit()
+
+            # isolate detected transiting planets
+            berger_kepler_transiters = berger_kepler_all.loc[berger_kepler_all['transit_status']==1]
+
+            completeness = len(berger_kepler_transiters)/len(berger_kepler)
+            #print(p, r, completeness)
+            completeness_map[p_elt][r_elt] = completeness
+    
+    #print(completeness_map)
+
+    return completeness_map

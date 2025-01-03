@@ -63,15 +63,16 @@ berger_kepler = berger_kepler.loc[berger_kepler['kepid'].isin(merged['kepid'])]
 model_flag = 'rayleigh'
 
 # planet formation history model parameters
-threshold = 9.5 # cosmic age in Gyr; 13.7 minus stellar age, then round
+threshold = 5 # cosmic age in Gyr; 13.7 minus stellar age, then round
 frac1 = 0.05 # frac1 must be < frac2 if comparing cosmic ages
-frac2 = 0.5
+frac2 = 0.70
 
-name_thresh = 95
+name_thresh = 5
 name_f1 = 5
-name_f2 = 50
+name_f2 = 70
 #name = 'step'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
-name = 'monotonic_'+str(name_f1)+'_'+str(name_f2)
+#name = 'monotonic_'+str(name_f1)+'_'+str(name_f2)
+name = 'piecewise'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 
 # send da video
 physical_planet_occurrences = []
@@ -103,7 +104,8 @@ for j in tqdm(range(30)):
     # THIS IS WHERE YOU CHOOSE THE PLANET FORMATION HISTORY MODEL YOU WANT TO FORWARD MODEL
     pop = Population(berger_kepler_temp['age'], threshold, frac1, frac2)
     #frac_hosts = pop.galactic_occurrence_step(threshold, frac1, frac2)
-    frac_hosts = pop.galactic_occurrence_monotonic(frac1, frac2)
+    #frac_hosts = pop.galactic_occurrence_monotonic(frac1, frac2)
+    frac_hosts = pop.galactic_occurrence_piecewise(frac1, frac2, threshold)
 
     alpha_se = np.random.normal(-1., 0.2)
     alpha_sn = np.random.normal(-1.5, 0.1)
