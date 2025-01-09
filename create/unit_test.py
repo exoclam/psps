@@ -68,7 +68,7 @@ merged = join(berger, megan, keys='kepid')
 merged.rename_column('parallax_2', 'parallax')
 
 berger_kepler = berger_kepler.loc[berger_kepler['kepid'].isin(merged['kepid'])]
-berger_kepler['height'] = pd.read_csv(path+'data/zmaxes.csv')[:len(berger_kepler)]
+berger_kepler['height'] = pd.read_csv(path+'data/zmaxes.csv')#[:len(berger_kepler)]
 
 """
 ### PLOT COMPLETENESS MAP
@@ -127,9 +127,9 @@ quit()
 model_flag = 'rayleigh'
 
 # planet formation history model parameters
-threshold = 11.5 # cosmic age in Gyr; 13.7 minus stellar age, then round
-frac1 = 0.2 # frac1 must be < frac2 if comparing cosmic ages
-frac2 = 0.85 # 0.55 led to f=0.3, high Z being too high, low Z being a bit low; yet, 0.6 led to f=0.23...?
+threshold = 5. # cosmic age in Gyr; 13.7 minus stellar age, then round
+frac1 = 0.01 # frac1 must be < frac2 if comparing cosmic ages
+frac2 = 0.8 # 0.55 led to f=0.3, high Z being too high, low Z being a bit low; yet, 0.6 led to f=0.23...?
 # 10, 0.15, 0.55 led to f=0.28, high Z being fine, low Z being a bit low; 10, 0.15, 0.6, f=0.3, low Z too high, high Z too low --> 10, 0.25, 0.5, led to f=0.34, low Z too low, high Z too high (basically flat) --> 10, 0.2, 0.6, led to f=0.34 and basically flat --> 10, 0.1, 0.7, f=0.31, low Z is good, high Z is a bit high --> 10, 0.05, 0.7, f=0.28, perfect match tho
 # 5.5, 0.01, 0.4 led to f=0.3, flat line with high Z just above, low Z being way too low
 # 12, 0.15, 0.7 led to f=0.21, low Z is way too low --> 12, 0.2, 0.85 led to f=0.28, low Z almost there --> 12, 0.25, 0.9 led to f=0.33, perfect low Z, high Z a bit high --> 12, 0.2, 0.9 led to f=0.28, low Z a bit low again.
@@ -140,6 +140,8 @@ frac2 = 0.85 # 0.55 led to f=0.3, high Z being too high, low Z being a bit low; 
 # piecewise: 0.1, 0.6, 10 --> f=0.18, much too low; 0.1, 0.6, 5 --> f=0.3, low Z a bit low, high Z a bit high; 0.15, 0.55, 6 --> f=0.29, basically flat; 0.05, 0.65, 5 --> f=0.29, still flat; 0.05, 0.7, 5 --> f=0.31, low Z a bit low, high Z a bit high, the closest we've gotten  
 # piecewise: 7.5, 0.1, 0.8 --> f=0.3; 7, 0.05, 0.85 --> f=0.3 (good match, low Z a tad low);  7, 0.01, 0.9 --> f=0.28 (low Z a bit low, high Z a bit high); 8, 0.01, 0.9 --> f=0.24 (model fit was perfect, but low Z was actually too low)
 # piecewise: 7.5, 0.01, 0.9 --> f=0.27 (lowest Z is low, all else perfect); 7.5, 0.01, 0.95 --> f=0.28 (flat, way off); 7.5, 0.03, 0.9 --> f=0.28 (flat, way off); 7.5, 0.05, 0.9 --> f=0.30 (better, if only lowest Z was a tad higher); 7.5, 0.1, 0.9 --> f=0.33 (flat, but bc the middle point is the only one that's too high)
+# piecewise: 5, 0.05, 0.95 --> f=
+
 """
 # make Fig 3 for Paper III, in order to show a sample platter of step function models
 thresholds = np.array([12, 11.5, 11, 9.5, 7.5, 5.5])
@@ -153,6 +155,7 @@ name_thresh = 115
 name_f1 = 20
 name_f2 = 85
 name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
+name = 'piecewise_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 
 heights = []
 ages = []
@@ -169,6 +172,7 @@ period_grid = np.logspace(np.log10(2), np.log10(300), 10)
 radius_grid = np.linspace(1, 4, 10)
 height_bins = np.array([0., 150, 250, 400, 650, 3000])
 height_bins = np.linspace(0, 1500, 10)
+height_bins = np.array([0., 120, 200, 300, 500, 800, 1500]) # the actual Zink Fig 12 height bins
 
 """
 # histogram of heights
@@ -204,9 +208,9 @@ for j in tqdm(range(1)):
     ### create a Population object to hold information about the occurrence law governing that specific population
     # THIS IS WHERE YOU CHOOSE THE PLANET FORMATION HISTORY MODEL YOU WANT TO FORWARD MODEL
     pop = Population(berger_kepler_temp['age'], threshold, frac1, frac2)
-    frac_hosts = pop.galactic_occurrence_step(threshold, frac1, frac2)
+    #frac_hosts = pop.galactic_occurrence_step(threshold, frac1, frac2)
     #frac_hosts = pop.galactic_occurrence_monotonic(frac1, frac2)
-    #frac_hosts = pop.galactic_occurrence_piecewise(frac1, frac2, threshold)
+    frac_hosts = pop.galactic_occurrence_piecewise(frac1, frac2, threshold)
 
     alpha_se = np.random.normal(-1., 0.2)
     alpha_sn = np.random.normal(-1.5, 0.1)
@@ -327,10 +331,9 @@ for i in range(5):  # 10
     ### Completeness
     # Calculate completeness map(s)
     completeness_map, piv_physical, piv_detected = simulate_helpers.completeness(berger_kepler_planets, berger_kepler_transiters)
-    completeness_threshold = 0.01 # completeness threshold under which period/radius cell is not counted; 0.5% results in full recovery, but let's round up to 1%
+    completeness_threshold = 0.0025 # completeness threshold under which period/radius cell is not counted; 0.5% results in full recovery, but let's round up to 1%
     completeness_map = completeness_map.mask(completeness_map < completeness_threshold) # assert that completeness fractions lower than 1% are statistically insignificant
     print(completeness_map)
-
 
     # new, experimental way of applying completeness map
     berger_kepler_transiters['radius_bins'] = pd.cut(berger_kepler_transiters['planet_radii'], bins=radius_grid, include_lowest=True)
@@ -372,23 +375,43 @@ for i in range(5):  # 10
     detected_planet_occurrences_all.append(detected_planet_occurrence)
 
     # same, but adjust for period- and radius-dependent completeness 
-    berger_kepler_transiters1 = berger_kepler_transiters.loc[berger_kepler_transiters['height'] <= 150]
-    berger_kepler_transiters2 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 150) & (berger_kepler_transiters['height'] <= 250)]
-    berger_kepler_transiters3 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 250) & (berger_kepler_transiters['height'] <= 400)]
-    berger_kepler_transiters4 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 400) & (berger_kepler_transiters['height'] <= 650)]
-    berger_kepler_transiters5 = berger_kepler_transiters.loc[berger_kepler_transiters['height'] > 650]
-    #print(len(berger_kepler_planets))
-    #print(len(berger_kepler_transiters))
-    #print(simulate_helpers.adjust_for_completeness(berger_kepler_transiters, completeness_map, radius_grid, period_grid))
-    berger_kepler_transiters1 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 0) & (berger_kepler_transiters['height'] <= 150)]
-    berger_kepler_transiters2 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 150) & (berger_kepler_transiters['height'] <= 300)]
-    berger_kepler_transiters3 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 300) & (berger_kepler_transiters['height'] <= 450)]
-    berger_kepler_transiters4 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 450) & (berger_kepler_transiters['height'] <= 600)]
-    berger_kepler_transiters5 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 600) & (berger_kepler_transiters['height'] <= 750)]
-    berger_kepler_transiters6 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 750) & (berger_kepler_transiters['height'] <= 900)]
-    berger_kepler_transiters7 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 900) & (berger_kepler_transiters['height'] <= 1050)]
-    berger_kepler_transiters8 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 1050) & (berger_kepler_transiters['height'] <= 1200)]
-    berger_kepler_transiters9 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 1200) & (berger_kepler_transiters['height'] <= 1350)]
+    berger_kepler_transiters1 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 0) & (berger_kepler_transiters['height'] <= 120)]
+    berger_kepler_transiters2 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 120) & (berger_kepler_transiters['height'] <= 200)]
+    berger_kepler_transiters3 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 200) & (berger_kepler_transiters['height'] <= 300)]
+    berger_kepler_transiters4 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 300) & (berger_kepler_transiters['height'] <= 500)]
+    berger_kepler_transiters5 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 500) & (berger_kepler_transiters['height'] <= 800)]
+    berger_kepler_transiters6 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 800) & (berger_kepler_transiters['height'] <= 1500)]
+
+    #berger_kepler_transiters1 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 0) & (berger_kepler_transiters['height'] <= 150)]
+    #berger_kepler_transiters2 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 150) & (berger_kepler_transiters['height'] <= 300)]
+    #berger_kepler_transiters3 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 450) & (berger_kepler_transiters['height'] <= 600)]
+    #berger_kepler_transiters4 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 600) & (berger_kepler_transiters['height'] <= 750)]
+    #berger_kepler_transiters5 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 750) & (berger_kepler_transiters['height'] <= 900)]
+    #berger_kepler_transiters6 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 900) & (berger_kepler_transiters['height'] <= 1050)]
+    #berger_kepler_transiters7 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 1050) & (berger_kepler_transiters['height'] <= 1200)]
+    #berger_kepler_transiters8 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 1200) & (berger_kepler_transiters['height'] <= 1350)]
+    #berger_kepler_transiters9 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > 1350) & (berger_kepler_transiters['height'] <= 1500)]
+
+    #len_berger_kepler_transiters, _ = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters, completeness_map_np, radius_grid, period_grid) #completeness_map_np vs completeness_map
+    #print(np.sum(np.mean(physical_planet_occurrences, axis=0)))
+    #print(100 * np.sum(len_berger_kepler_transiters/berger_kepler_counts))
+    
+    #plt.errorbar(np.array(height_bins[:-1]), np.mean(physical_planet_occurrences, axis=0), np.std(physical_planet_occurrences, axis=0), fmt='o', alpha=0.5, capsize=3, elinewidth=1, markeredgewidth=1, label='true')
+    #plt.scatter(np.array(height_bins[:-1]), len_berger_kepler_transiters/berger_kepler_counts, color='purple', label='recovered')
+    #plt.xlabel(r"$Z_{max}$ [pc]")
+    #plt.ylabel("planets per 100 stars")
+    #plt.legend()
+    #plt.show()
+    #quit()
+
+    #"""
+    len_berger_kepler_transiters1, _ = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters1, completeness_map, radius_grid, period_grid) #completeness_map_np vs completeness_map
+    len_berger_kepler_transiters2, _ = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters2, completeness_map, radius_grid, period_grid)
+    len_berger_kepler_transiters3, _ = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters3, completeness_map, radius_grid, period_grid)
+    len_berger_kepler_transiters4, _ = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters4, completeness_map, radius_grid, period_grid)
+    len_berger_kepler_transiters5, _ = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters5, completeness_map, radius_grid, period_grid)
+    len_berger_kepler_transiters6, _ = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters6, completeness_map, radius_grid, period_grid)
+    len_berger_kepler_transiters = np.array([len_berger_kepler_transiters1, len_berger_kepler_transiters2, len_berger_kepler_transiters3, len_berger_kepler_transiters4, len_berger_kepler_transiters5, len_berger_kepler_transiters6])
 
     #berger_kepler_transiters1['radius_bins'] = pd.cut(berger_kepler_transiters1['planet_radii'], bins=radius_grid, include_lowest=True)
     #berger_kepler_transiters1['period_bins'] = pd.cut(berger_kepler_transiters1['periods'], bins=period_grid, include_lowest=True)
@@ -399,6 +422,7 @@ for i in range(5):  # 10
     #print(completeness_map)
     #quit()
 
+    """
     len_berger_kepler_transiters1, df_piv1 = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters1, completeness_map_np, radius_grid, period_grid)
     len_berger_kepler_transiters2, df_piv2 = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters2, completeness_map_np, radius_grid, period_grid)
     len_berger_kepler_transiters3, df_piv3 = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters3, completeness_map_np, radius_grid, period_grid)
@@ -409,14 +433,13 @@ for i in range(5):  # 10
     len_berger_kepler_transiters8, df_piv8 = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters8, completeness_map_np, radius_grid, period_grid)
     len_berger_kepler_transiters9, df_piv9 = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters9, completeness_map_np, radius_grid, period_grid)
     len_berger_kepler_transiters = np.array([len_berger_kepler_transiters1, len_berger_kepler_transiters2, len_berger_kepler_transiters3, len_berger_kepler_transiters4, len_berger_kepler_transiters5, len_berger_kepler_transiters6, len_berger_kepler_transiters7, len_berger_kepler_transiters8, len_berger_kepler_transiters9])
-    
+    """
+
     ### what if we split height bins into 10 evenly-spaced bins
     berger_kepler_transiters['height_bins'] = pd.cut(berger_kepler_transiters['height'], bins=height_bins, include_lowest=True)
 
-
     adjusted_planet_occurrence = len_berger_kepler_transiters/berger_kepler_counts
     adjusted_planet_occurrences_all.append(adjusted_planet_occurrence)
-
 
 heights = np.concatenate(heights)
 ages = np.concatenate(ages)
@@ -471,7 +494,6 @@ plt.errorbar(np.array(height_bins[1:]), mean_detected_planet_occurrences*100, ye
 plt.errorbar(np.array(height_bins[1:]), mean_physical_planet_occurrences, yerr, fmt='o', label='true')
 plt.legend()
 plt.show()
-quit()
 
 z_max = np.logspace(2, 3, 100)
 def model(x, tau, occurrence):
@@ -637,5 +659,5 @@ ax2.set_ylabel('planet host fraction')
 ax2.set_ylim([0,1])
 
 fig.tight_layout()
-plt.savefig(path+'plots/model_vs_zink_'+name+'_recovered.png', format='png', bbox_inches='tight')
+#plt.savefig(path+'plots/model_vs_zink_'+name+'_recovered.png', format='png', bbox_inches='tight')
 plt.show()

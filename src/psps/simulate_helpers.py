@@ -508,6 +508,24 @@ def calculate_impact_parameter_vectorized(star_radius, a, e, incl, omega, angle_
     return factor1 * factor2
 
 def calculate_transit_duration_vectorized(P, r_star, r_planet, b, a, inc, e, omega, angle_flag): # Winn 2011s Eqn 14 & 16
+    """
+    Calculate tdur, but make it snappy.
+
+    Input:
+    - P: period, days
+    - r_star: stellar radius, AU
+    - r_planet: planet radius, AU
+    - b: impact parameter
+    - a: semi-major axis, AU
+    - inc: inclination, radians
+    - e: eccentricity
+    - omega: longitude of periastron, radians
+    - angle_flag: True = indexed at 0; False = indexed at pi/2
+
+    Output:
+    - tdur: transit duration, hours
+
+    """
     #print("take 1: ", r_planet/r_star)
     #print("take 2: ", (1+(r_planet/r_star))**2 - b**2)
     
@@ -608,18 +626,24 @@ def calculate_sn_vectorized(P, rp, rs, cdpp, tdur, unit_test_flag=False):
     tobs = 365*3.5 # days; time spanned observing the target; set to 3.5 years, or the length of Kepler mission
     f0 = 0.92 # fraction of time spent actually observing and not doing spacecraft things
     tcdpp = 0.25 # days; using CDPP for 6 hour transit durations; could change to be more like Earth transiting Sun?
-    rp = solar_radius_to_au(rp) # earth_radius_to_au when not using Matthias's test set
+    rp = earth_radius_to_au(rp) # earth_radius_to_au when not using Matthias's test set; solar_radius_to_au when using Matthias's test set
     rs = solar_radius_to_au(rs)
 
-    factor1 = tobs*f0/P.apply(lambda x: np.sqrt(x)) # this is the number of transits
+    #factor1_old = tobs*f0/P.apply(lambda x: np.sqrt(x)) # this is the number of transits
+    factor1 = (tobs*f0/P).apply(lambda x: np.sqrt(x)) # this is the number of transits
+
     delta = 1e6*(rp/rs)**2 # convert from parts per unit to ppm
-    cdpp_eff = cdpp * tcdpp/tdur.apply(lambda x: np.sqrt(x))
+
+    #cdpp_eff_old = cdpp * tcdpp/tdur.apply(lambda x: np.sqrt(x))
+    cdpp_eff = cdpp * (tcdpp/tdur).apply(lambda x: np.sqrt(x))
 
     factor2 = delta/cdpp_eff
+    #factor2_old = delta/cdpp_eff_old
     sn = factor1 * factor2
+    #sn_old = factor1_old * factor2_old
 
     """
-    NEED TO KEEP NANS ACTUALLY FOR FREE INFORMATION ON GEOMETRIC TRANSITS
+    KEEP NANS ACTUALLY FOR FREE INFORMATION ON GEOMETRIC TRANSITS
     if unit_test_flag==True:
         if np.isnan(sn)==True:
             sn = 0
@@ -1282,6 +1306,9 @@ def completeness(physical, detected):
     - piv: Pandas pivot table of completeness fractions across period and radius bins
     """
 
+    geom = physical.loc[physical['geom_transit_status']==1]
+    #print(geom.loc[((geom['planet_radii'] > 3.667) & (geom['planet_radii'] <= 4) & (geom['periods'] > 3.49) & (geom['periods'] <= 6.09))])
+
     period_grid = np.logspace(np.log10(2), np.log10(300), 10)
     radius_grid = np.linspace(1, 4, 10)
 
@@ -1289,7 +1316,8 @@ def completeness(physical, detected):
     df_physical = physical[['periods', 'planet_radii']]
     df_physical['radius_bins'] = pd.cut(df_physical['planet_radii'], bins=radius_grid, include_lowest=True)
     df_physical['period_bins'] = pd.cut(df_physical['periods'], bins=period_grid, include_lowest=True)
-
+    #print(physical.loc[((physical['planet_radii'] > 3.667) & (physical['planet_radii'] <= 4) & (physical['periods'] > 3.49) & (physical['periods'] <= 6.09))])
+    
     piv_physical = df_physical.groupby(['period_bins', 'radius_bins']).count().reset_index()
     piv_physical = piv_physical.pivot(index='radius_bins', columns='period_bins', values='periods')
 
@@ -1297,6 +1325,7 @@ def completeness(physical, detected):
     df_detected = detected[['periods', 'planet_radii']]
     df_detected['radius_bins'] = pd.cut(df_detected['planet_radii'], bins=radius_grid, include_lowest=True)
     df_detected['period_bins'] = pd.cut(df_detected['periods'], bins=period_grid, include_lowest=True)
+    #print(detected.loc[((detected['planet_radii'] > 3.667) & (detected['planet_radii'] <= 4) & (detected['periods'] > 3.49) & (detected['periods'] <= 6.09))])
 
     piv_detected = df_detected.groupby(['period_bins', 'radius_bins']).count().reset_index()
     piv_detected = piv_detected.pivot(index='radius_bins', columns='period_bins', values='periods')

@@ -16,6 +16,7 @@ pylab.rcParams.update(pylab_params)
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+import seaborn as sns
 
 from psps.transit_class import Population, Star
 import psps.simulate_helpers as simulate_helpers
@@ -222,3 +223,44 @@ def completeness(berger_kepler):
     #print(completeness_map)
 
     return completeness_map
+
+def plot_completeness(mean_completeness_map, std_completeness_map, radius_grid, period_grid):
+
+    """
+    Plot cell by cell completeness over radius and period space, with errorbars
+
+    Input: 
+    - mean_completeness_map: completeness map, averaged over 30 detection pipeline realizations
+    - std_completeness_map: std of completeness map
+    - radius_grid: np.linspace(1, 4, 10)
+    - period_grid: np.logspace(2, 300, 10)
+    """
+
+    # several cells have uncertainties of 0% because there is only one surviving non-NaN realization; get rid of those, too 
+    # some of them still round to 0%, though
+    mean_completeness_map[std_completeness_map == 0] = np.nan
+    std_completeness_map[std_completeness_map == 0] = np.nan
+    
+    # mask NaNs
+    #mean_completeness_map = mean_completeness_map.mask(mean_completeness_map == np.nan)
+    #std_completeness_map = std_completeness_map.mask(std_completeness_map == np.nan)
+    #print(mean_completeness_map)
+    #print(std_completeness_map)
+
+    # plot
+    f, ((ax1)) = plt.subplots(1, 1, figsize=(8, 8))
+    formatted_text = (np.asarray(["{0}±{1}%".format( 
+        np.round(100*mean, 1), np.round(100*std, 1)) for mean, std in zip(mean_completeness_map.flatten(), std_completeness_map.flatten())])).reshape(9, 9) 
+    sns.heatmap(mean_completeness_map, yticklabels=np.around(radius_grid, 1), xticklabels=np.around(period_grid, 0), vmin=0., vmax=1., cmap='Blues', cbar_kws={'label': 'completeness'}, annot=formatted_text, fmt="", annot_kws={"size": 7})
+    ax1.set_xticks(ax1.get_xticks()[::2]) # sample every other tick, for cleanness
+    ax1.set_yticks(ax1.get_yticks()[::2]) # sample every other tick, for cleanness
+    ax1.invert_yaxis()
+    plt.xlabel('period [days]')
+    plt.ylabel('radius [$R_{\oplus}$]')
+    #plt.xticks(ticks=period_grid)
+    #plt.yticks(ticks=radius_grid)
+    f.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig(path+'plots/completeness.png')
+    plt.show()
+
+    return

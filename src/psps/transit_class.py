@@ -354,7 +354,8 @@ class Star:
         #self.intact_flag = assign_flag(key, self.prob_intact, self.frac_host)
 
         # assign system-level inclination spread based on intact flag
-        self.sigma_incl = jnp.where(self.status=='intact', jnp.pi/90, jnp.pi/22.5) # no-planets will also have disrupted spread; need to figure out nested wheres in JAX
+        #self.sigma_incl = jnp.where(self.status=='intact', jnp.pi/90, jnp.pi/22.5) # no-planets will also have disrupted spread; need to figure out nested wheres in JAX
+        self.sigma_incl = np.where(self.status=='intact', np.pi/90, np.pi/22.5) # numpy version of above
 
         # assign number of planets per system based on intact flag
         self.num_planets = simulate_helpers.assign_num_planets(self.status)

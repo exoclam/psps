@@ -75,7 +75,7 @@ threshold = 7.5 # f = 0.35
 frac1 = 0.01
 frac2 = 0.6
 
-threshold = 5.5 # f = 0.30
+threshold = 5.5 # f = 0.30, 0.36
 frac1 = 0.01
 frac2 = 0.4
 
@@ -94,8 +94,8 @@ frac2 = 0.7
 
 # operative parameters
 threshold = 12.
-frac1 = 0.20
-frac2 = 0.90
+frac1 = 0.2
+frac2 = 0.9
 
 name_thresh = 12
 name_f1 = 20
@@ -106,13 +106,13 @@ name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 
 # new, one-time completeness map
 #completeness_map = pd.read_csv(path+'data/completeness_map.csv') 
-completeness_map = pd.read_csv(path+'data/completeness_map_empirical'+name+'.csv') 
-completeness_map_np = completeness_map.to_numpy()
-completeness_map_np = np.flip(completeness_map_np, axis=0)
+#completeness_map = pd.read_csv(path+'data/completeness_map_empirical'+name+'.csv') 
+#completeness_map_np = completeness_map.to_numpy()
+#completeness_map_np = np.flip(completeness_map_np, axis=0)
 
 #"""
 ### diagnostic plotting age vs height
-sim = sorted(glob(path+'data/berger_gala/' + name + '/' + name + '*'))[:5]
+sim = sorted(glob(path+'data/berger_gala/' + name + '/' + name + '*'))
 
 heights = []
 ages = []
@@ -181,8 +181,8 @@ for i in tqdm(range(len(sim))):
     #print(np.array(berger_kepler_planets.groupby(['height_bins']).count().reset_index()['kepid']))
     #berger_kepler_planets_counts_precut = np.array(berger_kepler_planets.groupby(['height_bins']).count().reset_index()['kepid'])
 
-    berger_kepler_planets = berger_kepler_planets.loc[(berger_kepler_planets['periods'] <= 40) & (berger_kepler_planets['periods'] > 1)] # limit periods to fairly compare with Zink+ 2023
-    berger_kepler_planets = berger_kepler_planets.loc[berger_kepler_planets['planet_radii'] <= 4.] # limit radii to fairly compare with SEs in Zink+ 2023 (2)...or how about include SNs too (4)?
+    #berger_kepler_planets = berger_kepler_planets.loc[(berger_kepler_planets['periods'] <= 40) & (berger_kepler_planets['periods'] > 1)] # limit periods to fairly compare with Zink+ 2023
+    #berger_kepler_planets = berger_kepler_planets.loc[berger_kepler_planets['planet_radii'] <= 4.] # limit radii to fairly compare with SEs in Zink+ 2023 (2)...or how about include SNs too (4)?
     berger_kepler_planets_counts = np.array(berger_kepler_planets.groupby(['height_bins']).count().reset_index()['kepid'])
 
     physical_planet_occurrence = 100 * berger_kepler_planets_counts/berger_kepler_counts 
@@ -192,8 +192,11 @@ for i in tqdm(range(len(sim))):
     adjusted_planet_occurrences = []
     transit_multiplicities = []
     geom_transit_multiplicities = []
+    piv_physicals = []
+    piv_detecteds = []
 
-    for k in range(10): 
+    completeness_all = []
+    for k in range(5): 
 
         #berger_kepler_planets_temp = berger_kepler_planets
 
@@ -215,6 +218,15 @@ for i in tqdm(range(len(sim))):
 
         # isolate detected transiting planets
         berger_kepler_transiters = berger_kepler_planets.loc[berger_kepler_planets['transit_status']==1]
+        geom = berger_kepler_planets.loc[berger_kepler_planets['geom_transit_status']==1]
+        non_geom = berger_kepler_planets.loc[berger_kepler_planets['geom_transit_status']!=1]
+        print(geom.loc[((geom['planet_radii'] > 3.667) & (geom['planet_radii'] <= 4) & (geom['periods'] > 3.49) & (geom['periods'] <= 6.09))][['incls', 'b']])
+        print(berger_kepler_transiters.loc[((berger_kepler_transiters['planet_radii'] > 3.667) & (berger_kepler_transiters['planet_radii'] <= 4) & (berger_kepler_transiters['periods'] > 3.49) & (berger_kepler_transiters['periods'] <= 6.09))])
+        quit()
+        #plt.hist(geom['stellar_radius'], alpha=0.3, label='geom')
+        #plt.hist(non_geom['stellar_radius'], alpha=0.3, label='non geom')
+        #plt.legend()
+        #plt.show()
         #print("physical planets: ", len((berger_kepler_planets['kepid'])))
         #print("detected planets: ", len((berger_kepler_transiters['kepid'])))
         
@@ -228,9 +240,14 @@ for i in tqdm(range(len(sim))):
         # Calculate completeness map
         #if (k==0) or (k==1) or (k==2) or (k==3) or (k==4):
         completeness_map, piv_physical, piv_detected = simulate_helpers.completeness(berger_kepler_planets, berger_kepler_transiters)
-        completeness_threshold = 0.001 # completeness threshold under which period/radius cell is not counted; 0.5% results in full recovery, but let's round up to 1%
+        completeness_threshold = 0.0025 # completeness threshold under which period/radius cell is not counted; 0.5% results in full recovery, but let's round up to 1%
         completeness_map = completeness_map.mask(completeness_map < completeness_threshold) # assert that completeness fractions lower than 1% are statistically insignificant
         completeness_all.append(completeness_map)
+        #print(piv_physical)
+        #print(piv_detected)
+        #print(completeness_map)
+        # why do some cells always have the same fraction? 
+
         #print("CHECK")
         #print(completeness_map_np)
         #print(completeness_map)
@@ -309,7 +326,7 @@ for i in tqdm(range(len(sim))):
         len_berger_kepler_transiters = np.array([len_berger_kepler_transiters1, len_berger_kepler_transiters2, len_berger_kepler_transiters3, len_berger_kepler_transiters4, len_berger_kepler_transiters5, len_berger_kepler_transiters6])
 
         len_berger_kepler_recovered, recovered_piv = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters, completeness_map, radius_grid, period_grid)
-        #"""
+        """
         print("physical piv: ", piv_physical)
         print("detected piv: ", piv_detected)
         print("completeness map: ", completeness_map)
@@ -318,9 +335,13 @@ for i in tqdm(range(len(sim))):
         print("number of physical planets; number of stars: ", len(berger_kepler_planets), np.sum(berger_kepler_counts))
         print("physical planet occurrence: ", 100 * len(berger_kepler_planets)/np.sum(berger_kepler_counts))
         print("recovered total vs physical total: ", 100 * len_berger_kepler_recovered/np.sum(berger_kepler_counts), np.sum(physical_planet_occurrence))
-        
-        print("")
-        #"""
+        print(100 * len_berger_kepler_transiters1/berger_kepler_counts[0], physical_planet_occurrence[0])
+        print(100 * len_berger_kepler_transiters1/berger_kepler_counts[1], physical_planet_occurrence[1])
+        print(100 * len_berger_kepler_transiters1/berger_kepler_counts[2], physical_planet_occurrence[2])
+        print(100 * len_berger_kepler_transiters1/berger_kepler_counts[3], physical_planet_occurrence[3])
+        print(100 * len_berger_kepler_transiters5/berger_kepler_counts[4], physical_planet_occurrence[4])
+        print(100 * len_berger_kepler_transiters1/berger_kepler_counts[5], physical_planet_occurrence[5])
+        """
 
         #len_berger_kepler_transiters1, _ = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters1, completeness_map_np, radius_grid, period_grid) #completeness_map_np vs completeness_map
         #len_berger_kepler_transiters2, _ = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters2, completeness_map_np, radius_grid, period_grid)
@@ -333,24 +354,22 @@ for i in tqdm(range(len(sim))):
         #len_berger_kepler_transiters9, _ = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters9, completeness_map_np, radius_grid, period_grid)
         #len_berger_kepler_transiters = np.array([len_berger_kepler_transiters1, len_berger_kepler_transiters2, len_berger_kepler_transiters3, len_berger_kepler_transiters4, len_berger_kepler_transiters5, len_berger_kepler_transiters6, len_berger_kepler_transiters7, len_berger_kepler_transiters8, len_berger_kepler_transiters9])
 
-        #print(berger_kepler_transiters1)
-        print(100 * len_berger_kepler_transiters1/berger_kepler_counts[0], physical_planet_occurrence[0])
-        print(100 * len_berger_kepler_transiters1/berger_kepler_counts[1], physical_planet_occurrence[1])
-        print(100 * len_berger_kepler_transiters1/berger_kepler_counts[2], physical_planet_occurrence[2])
-        print(100 * len_berger_kepler_transiters1/berger_kepler_counts[3], physical_planet_occurrence[3])
-        #print(berger_kepler_transiters5)
-        print(100 * len_berger_kepler_transiters5/berger_kepler_counts[4], physical_planet_occurrence[4])
-        print(100 * len_berger_kepler_transiters1/berger_kepler_counts[5], physical_planet_occurrence[5])
-
         adjusted_planet_occurrence = len_berger_kepler_transiters/berger_kepler_counts
         adjusted_planet_occurrences_all.append(adjusted_planet_occurrence)
         #"""
 
-# one-time creation of empirical completeness map, using the first detection of each of the 30 Populations and averaging them
-print("COMPLETENESS MAPS")
-#print(completeness_all)
-print(np.nanmean(completeness_all, axis=0))
-#pd.DataFrame(np.nanmean(completeness_all, axis=0)).to_csv(path+'data/completeness_map_empirical'+name+'.csv', index=False)
+    quit()
+    # one-time creation of empirical completeness map, using the first detection of each of the 30 Populations and averaging them
+    print("COMPLETENESS MAPS")
+    print(completeness_all)
+
+    mean_completeness = np.nanmean(completeness_all, axis=0)
+    std_completeness = np.std(completeness_all, axis=0)
+    print(mean_completeness)
+    print(std_completeness)
+    utils.plot_completeness(mean_completeness, std_completeness, radius_grid, period_grid)
+    #pd.DataFrame(np.nanmean(completeness_all, axis=0)).to_csv(path+'data/completeness_map_empirical'+name+'.csv', index=False)
+    quit()
 
 print("")
 print("f: ", np.mean(fs))
@@ -358,33 +377,25 @@ print("")
 
 mean_physical_planet_occurrences = np.nanmean(physical_planet_occurrences, axis=0)
 yerr = np.std(physical_planet_occurrences, axis=0)
-print("mean physical planet occurrences, and yerr: ", mean_physical_planet_occurrences, yerr)
+print("mean physical planet occurrences, and yerr: ", mean_physical_planet_occurrences, yerr, np.sum(mean_physical_planet_occurrences))
 
 mean_recovered_planet_occurrences = 100 * np.nanmean(adjusted_planet_occurrences_all, axis=0)
 yerr_recovered = 100 * np.std(adjusted_planet_occurrences_all, axis=0)
-print("recovered planet occurrences, and yerr: ", mean_recovered_planet_occurrences, yerr_recovered)
+print("recovered planet occurrences, and yerr: ", mean_recovered_planet_occurrences, yerr_recovered, np.sum(mean_recovered_planet_occurrences))
 
 mean_detected_planet_occurrences = 100 * np.nanmean(detected_planet_occurrences_all, axis=0)
 yerr_detected = 100 * np.std(detected_planet_occurrences_all, axis=0)
 print("detected occurrence: ", mean_detected_planet_occurrences)
 
-print("")
-#print(berger_kepler_transiters1)
-#print(100 * len_berger_kepler_transiters1/berger_kepler_counts[0], mean_physical_planet_occurrence[0])
-#print(berger_kepler_transiters5)
-#print(100 * len_berger_kepler_transiters5/berger_kepler_counts[4], mean_physical_planet_occurrence[4])
-#quit()
-
-
 #plt.errorbar(np.array(height_bins[1:]), mean_detected_planet_occurrences, yerr_detected, fmt='o', label='detected')
-plt.errorbar(np.array(height_bins[1:]), mean_physical_planet_occurrences, yerr, fmt='o', alpha=0.5, capsize=3, elinewidth=1, markeredgewidth=1, label='true')
-plt.errorbar(np.array(height_bins[1:]), mean_recovered_planet_occurrences, yerr_recovered, fmt='o', color='purple', alpha=0.5, capsize=3, elinewidth=1, markeredgewidth=1, label='recovered')
+height_bins_shifted = height_bins[1:] + np.array([15, 20, 25, 30, 35, 40])
+plt.errorbar(height_bins_shifted, mean_physical_planet_occurrences, yerr, fmt='o', color='purple', alpha=0.5, capsize=3, elinewidth=1, markeredgewidth=1, label='true')
+plt.errorbar(np.array(height_bins[1:]), mean_recovered_planet_occurrences, yerr_recovered, fmt='o', color='#03acb1', alpha=0.5, capsize=3, elinewidth=1, markeredgewidth=1, label='recovered')
 plt.xlabel(r"$Z_{max}$ [pc]")
 plt.ylabel("planets per 100 stars")
 plt.legend()
 plt.savefig(path+'plots/true_vs_recovered_'+name+'.png', format='png', bbox_inches='tight')
 plt.show()
-quit()
 
 heights = np.concatenate(heights)
 ages = np.concatenate(ages)
@@ -436,12 +447,12 @@ def power_model(x, yerr, y=None):
     scaleMin = 100
     const = (scaleMax)**(tau+1)/(tau+1) - ((scaleMin)**(tau+1)/(tau+1))
     planet_yield = occurrence * x**(tau)/const/dln * 100
-    #print("planet yield: ", planet_yield)
-    #print("yerr: ", yerr)
-    #print("y: ", y)
-    #print("tau: ", tau)
-    #print("occurrence: ", occurrence)
-    #print("sample model: ", model(z_max, tau, occurrence))
+    print("planet yield: ", planet_yield)
+    print("yerr: ", yerr)
+    print("y: ", y)
+    print("tau: ", tau)
+    print("occurrence: ", occurrence)
+    print("sample model: ", model(z_max, tau, occurrence))
     
     with numpyro.plate("data", len(x)):
         numpyro.sample("planet_yield", dist.Normal(planet_yield, yerr), obs=y)
@@ -455,7 +466,8 @@ init_params = {
 run_optim = numpyro_ext.optim.optimize(
         power_model, init_strategy=numpyro.infer.init_to_median()
     )
-opt_params = run_optim(jax.random.PRNGKey(5), height_bins[:-1], yerr_recovered, y=mean_recovered_planet_occurrences)
+print(height_bins[:-1], yerr_recovered, mean_recovered_planet_occurrences)
+opt_params = run_optim(jax.random.PRNGKey(5), height_bins[1:], yerr_recovered, y=mean_recovered_planet_occurrences)
 print("opt params: ", opt_params)
 
 # sample posteriors for best-fit model to simulated data
@@ -469,7 +481,7 @@ sampler = infer.MCMC(
     progress_bar=True,
 )
 
-sampler.run(jax.random.PRNGKey(0), height_bins[:-1], yerr_recovered, y=mean_recovered_planet_occurrences)
+sampler.run(jax.random.PRNGKey(0), height_bins[1:], yerr_recovered, y=mean_recovered_planet_occurrences)
 inf_data = az.from_numpyro(sampler)
 print(az.summary(inf_data))
 
@@ -516,10 +528,12 @@ ax1.fill_between(z_max, yield_max, yield_min, color='red', alpha=0.3, label='Zin
 ax1.errorbar(x=zink_kepler['scale_height'], y=zink_kepler['occurrence'], yerr=(zink_kepler['occurrence_err1'], zink_kepler['occurrence_err2']), fmt='o', color='red', alpha=0.5, capsize=3, elinewidth=1, markeredgewidth=1, label='Zink+ 2023 Kepler data')
 
 # our simulated data
-ax1.errorbar(x=zink_kepler['scale_height'], y=mean_physical_planet_occurrences, yerr=yerr, fmt='o', capsize=3, elinewidth=1, markeredgewidth=1, color='green', alpha=0.5, label='model yield')
+height_bins_shifted1 = height_bins[1:] + np.array([7, 15, 18, 32, 48, 0])
+ax1.errorbar(x=height_bins_shifted1, y=mean_physical_planet_occurrences, yerr=yerr, fmt='o', capsize=3, elinewidth=1, markeredgewidth=1, color='purple', alpha=0.5, label='model physical yield')
 
 # our recovered data
-ax1.errorbar(x=zink_kepler['scale_height'], y=mean_recovered_planet_occurrences, yerr=yerr_recovered, fmt='o', capsize=3, elinewidth=1, markeredgewidth=1, color='#03acb1', alpha=0.5, label='recovered yield')
+height_bins_shifted2 = height_bins[1:] + np.array([15, 30, 40, 65, 100, 0])
+ax1.errorbar(x=height_bins_shifted2, y=mean_recovered_planet_occurrences, yerr=yerr_recovered, fmt='o', capsize=3, elinewidth=1, markeredgewidth=1, color='#03acb1', alpha=0.5, label='model recovered yield')
 
 # plot our best fit posteriors
 our_yield_max = []
@@ -537,11 +551,11 @@ for j in range(len(inf_data.posterior.data_vars['occurrence'])):
 for temp_list2 in zip_longest(*our_models):
     our_yield_max.append(np.percentile(temp_list2, 84)) # plus one sigma
     our_yield_min.append(np.percentile(temp_list2, 16)) # minus one sigma
-print("OUR YIELD: ", our_models)
-print(len(our_models))
-ax1.fill_between(z_max, our_yield_max, our_yield_min, color='#03acb1', alpha=0.3, label='best-fit posteriors') 
+#print("OUR YIELD: ", our_models)
+#print(len(our_models))
+ax1.fill_between(z_max, our_yield_max, our_yield_min, color='#03acb1', alpha=0.3, label='model best-fit posteriors') 
 
-ax1.set_xlim([100, 1000])
+ax1.set_xlim([100, 1500])
 ax1.set_ylim([6, 100])
 ax1.set_xscale('log')
 ax1.set_yscale('log')

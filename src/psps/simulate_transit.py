@@ -235,9 +235,9 @@ def calculate_transit_vectorized(P, star_radius, planet_radius, e, incl, omega, 
     - geom_transit_status: geometric transit status; Numpy array
     """
 
-    # convert CDPP from ppm to parts per unit
-    cdpps = cdpps * 1e6
-
+    # convert CDPP from ppm to parts per unit...why would I do that? bad, Chris!
+    cdpps = cdpps# * 1e6
+    
     #print(P, star_radius, planet_radius, e, incl, omega, star_mass, cdpps)
     prob_detections = []
     transit_statuses = []
@@ -260,7 +260,7 @@ def calculate_transit_vectorized(P, star_radius, planet_radius, e, incl, omega, 
     # Matthias's planet params are in solar units
     tdur = calculate_transit_duration_vectorized(P, solar_radius_to_au(star_radius), 
         earth_radius_to_au(np.array(planet_radius)), b, a, incl, e, omega, angle_flag)
-    
+
     # calculate CDPP by drawing from Kepler dataset relation with star radius
     #cdpp = [draw_cdpp(sr, berger_kepler) for sr in star_radius]
     
