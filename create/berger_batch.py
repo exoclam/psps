@@ -70,9 +70,9 @@ frac2 = 0.70
 name_thresh = 5
 name_f1 = 5
 name_f2 = 70
-#name = 'step'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
+#name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 #name = 'monotonic_'+str(name_f1)+'_'+str(name_f2)
-name = 'piecewise'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
+name = 'piecewise_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 
 # send da video
 physical_planet_occurrences = []

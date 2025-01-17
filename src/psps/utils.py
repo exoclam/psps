@@ -238,14 +238,14 @@ def plot_completeness(mean_completeness_map, std_completeness_map, radius_grid, 
 
     # several cells have uncertainties of 0% because there is only one surviving non-NaN realization; get rid of those, too 
     # some of them still round to 0%, though
-    mean_completeness_map[std_completeness_map == 0] = np.nan
-    std_completeness_map[std_completeness_map == 0] = np.nan
-    
+    #mean_completeness_map[std_completeness_map == 0] = np.nan
+    #std_completeness_map[std_completeness_map == 0] = np.nan
+    #print("mean map: ", mean_completeness_map)
+    #print("std map: ", std_completeness_map)
+
     # mask NaNs
-    #mean_completeness_map = mean_completeness_map.mask(mean_completeness_map == np.nan)
-    #std_completeness_map = std_completeness_map.mask(std_completeness_map == np.nan)
-    #print(mean_completeness_map)
-    #print(std_completeness_map)
+    #mean_completeness_ma = np.ma.masked_invalid(mean_completeness_map)
+    #std_completeness_map = np.ma.masked_invalid(std_completeness_map)
 
     # plot
     f, ((ax1)) = plt.subplots(1, 1, figsize=(8, 8))
@@ -260,7 +260,7 @@ def plot_completeness(mean_completeness_map, std_completeness_map, radius_grid, 
     #plt.xticks(ticks=period_grid)
     #plt.yticks(ticks=radius_grid)
     f.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig(path+'plots/completeness.png')
+    plt.savefig(path+'plots/sensitivity.png')
     plt.show()
 
     return
