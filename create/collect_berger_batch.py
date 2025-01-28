@@ -242,7 +242,8 @@ for i in tqdm(range(len(sim))):
         berger_kepler_planets['kepid'] = berger_kepler_planets['kepid'].apply(str) 
 
         # plot color-coded visualization
-        utils.plot_host_vs_height(berger_kepler_all, berger_kepler_planets)
+        #utils.plot_host_vs_height(berger_kepler_all, berger_kepler_planets)
+        utils.plot_age_vs_height(berger_kepler_all)
         quit()
 
         # isolate detected transiting planets

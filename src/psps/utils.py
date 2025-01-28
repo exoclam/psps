@@ -274,7 +274,7 @@ def plot_host_vs_height(df_all, df_planets):
         df_all (pandas DataFrame): of all systems, eg. trilegal_kepler_all or berger_kepler_all
         df_planets (pd DataFrame): of only planet-hosting systems
     """
-    
+
     df_none = df_all.loc[df_all['num_planets'].isnull()]
     df_none = df_none.reset_index()
     
@@ -288,25 +288,90 @@ def plot_host_vs_height(df_all, df_planets):
     df_none['shuffled_index'] = pre_shuffled_index[:len(df_none)]
     df_planets['shuffled_index'] = pre_shuffled_index[len(df_none):]
 
-    plt.scatter(df_none['shuffled_index'], df_none['height'], s=5, alpha=0.5, color='powderblue', label='non-host')
-    plt.scatter(df_planets['shuffled_index'], df_planets['height'], s=5, alpha=0.5, color='steelblue', label='host')
-    plt.xlabel('star index')
-    plt.ylabel(r'$Z_{max}$ [pc]')
-    plt.tight_layout()
+    # bin DF by height
+    all1 = df_all.loc[(df_all['height'] > 100) & (df_all['height'] <= np.logspace(2,3,6)[1])]
+    all2 = df_all.loc[(df_all['height'] > np.logspace(2,3,6)[1]) & (df_all['height'] <= np.logspace(2,3,6)[2])]
+    all3 = df_all.loc[(df_all['height'] > np.logspace(2,3,6)[2]) & (df_all['height'] <= np.logspace(2,3,6)[3])]
+    all4 = df_all.loc[(df_all['height'] > np.logspace(2,3,6)[3]) & (df_all['height'] <= np.logspace(2,3,6)[4])]
+    all5 = df_all.loc[(df_all['height'] > np.logspace(2,3,6)[4]) & (df_all['height'] <= 1000)]
+
+    # make custom RHS labels
+    custom_locs = np.logspace(2, 3, 6)[1:]
+    custom_labels = np.round(np.array([np.nanmean(all1['frac_host']), np.nanmean(all2['frac_host']), np.nanmean(all3['frac_host']), np.nanmean(all4['frac_host']), np.nanmean(all5['frac_host'])]), 2)
+
+    # plotting
+    fig, ax = plt.subplots(1, 1, figsize=(8, 8))
+
+    ax.scatter(df_none['shuffled_index'], df_none['height'], s=5, alpha=0.5, color='powderblue', label='non-host')
+    ax.scatter(df_planets['shuffled_index'], df_planets['height'], s=5, alpha=0.5, color='steelblue', label='host')
+    ax.set_xlabel('star index')
+    ax.set_ylabel(r'$Z_{max}$ [pc]')
+
+    ax1 = ax.secondary_yaxis('right')
+    ax1.set_yticks(custom_locs)
+    ax1.set_yticklabels(custom_labels)
+    ax1.set_ylabel("< host fraction > at this height")
+
+    fig.tight_layout()
     plt.legend()
-    plt.savefig(path+'plots/color-code.png')
+    plt.savefig(path+'plots/color-code-frac-host.png')
     #plt.show()
 
     return
 
-def plot_age_vs_height(df_all, df_planets):
+def plot_age_vs_height(df_all):
     """
     Figure of scatter points, one per system, color-coded by age
     Y axis is Zmax. X axis is arbitrary. 
 
     Args:
         df_all (pandas DataFrame): of all systems, eg. trilegal_kepler_all or berger_kepler_all
-        df_planets (pd DataFrame): of only planet-hosting systems
     """
+
+    df1 = df_all.loc[(df_all['age'] > 0) & (df_all['age'] <= 2)] 
+    df2 = df_all.loc[(df_all['age'] > 2) & (df_all['age'] <= 4)] 
+    df3 = df_all.loc[(df_all['age'] > 4) & (df_all['age'] <= 6)] 
+    df4 = df_all.loc[(df_all['age'] > 6) & (df_all['age'] <= 8)] 
+    df5 = df_all.loc[(df_all['age'] > 8)] 
+    
+    # randomize indices 
+    pre_shuffled_index = np.linspace(0, len(df_all)-1, len(df_all))
+    np.random.shuffle(pre_shuffled_index) 
+
+    df1['shuffled_index'] = pre_shuffled_index[:len(df1)]
+    #df2['shuffled_index'] = pre_shuffled_index[len(df1):len(df2)]
+
+    # bin DF by height
+    all1 = df_all.loc[(df_all['height'] > 100) & (df_all['height'] <= np.logspace(2,3,6)[1])]
+    all2 = df_all.loc[(df_all['height'] > np.logspace(2,3,6)[1]) & (df_all['height'] <= np.logspace(2,3,6)[2])]
+    all3 = df_all.loc[(df_all['height'] > np.logspace(2,3,6)[2]) & (df_all['height'] <= np.logspace(2,3,6)[3])]
+    all4 = df_all.loc[(df_all['height'] > np.logspace(2,3,6)[3]) & (df_all['height'] <= np.logspace(2,3,6)[4])]
+    all5 = df_all.loc[(df_all['height'] > np.logspace(2,3,6)[4]) & (df_all['height'] <= 1000)]
+
+    # make custom RHS labels
+    custom_locs = np.logspace(2, 3, 6)[1:]
+    custom_labels = np.round(np.array([np.nanmean(all1['age']), np.nanmean(all2['age']), np.nanmean(all3['age']), np.nanmean(all4['age']), np.nanmean(all5['age'])]), 2)
+
+    # plotting
+    fig, ax = plt.subplots(1, 1, figsize=(8, 8))
+
+    ax.scatter(df1.index, df1['height'], s=5, alpha=0.5, color='#7D3C98', label='0-2 Gyr')
+    ax.scatter(df2.index, df2['height'], s=5, alpha=0.5, color='#2E86C1', label='2-4 Gyr')
+    ax.scatter(df3.index, df3['height'], s=5, alpha=0.5, color='#138D75', label='4-6 Gyr')
+    ax.scatter(df4.index, df4['height'], s=5, alpha=0.5, color='#D4AC0D', label='6-8 Gyr')
+    ax.scatter(df5.index, df5['height'], s=5, alpha=0.5, color='#CB4335', label='>8 Gyr')
+    #ax.scatter(df_planets['shuffled_index'], df_planets['height'], s=5, alpha=0.5, color='steelblue', label='host')
+    ax.set_xlabel('star index')
+    ax.set_ylabel(r'$Z_{max}$ [pc]')
+
+    ax1 = ax.secondary_yaxis('right')
+    ax1.set_yticks(custom_locs)
+    ax1.set_yticklabels(custom_labels)
+    ax1.set_ylabel("< age > at this height [Gyr]")
+
+    fig.tight_layout()
+    plt.legend()
+    plt.savefig(path+'plots/color-code-age.png')
+    #plt.show()
 
     return
