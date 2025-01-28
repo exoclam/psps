@@ -62,19 +62,19 @@ def literal_eval_w_exceptions(x):
 """
 
 # operative parameters
-threshold = 11.
-frac1 = 0.05
-frac2 = 0.7
+threshold = 5
+frac1 = 0.15
+frac2 = 0.45
 
-name_thresh = 11
-name_f1 = 5
-name_f2 = 70
+name_thresh = 5
+name_f1 = 15
+name_f2 = 45
 name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 #name = 'monotonic_'+str(name_f1)+'_'+str(name_f2) 
-#name = 'piecewise_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2) 
+name = 'piecewise_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2) 
 
-#sim = sorted(glob(path+'data/trilegal/' + name + '/' + name + '*'))#[:5]
-sim = sorted(glob(path+'data/trilegal/' + name + '*'))#[:5]
+sim = sorted(glob(path+'data/trilegal/' + name + '/' + name + '*'))#[:5]
+#sim = sorted(glob(path+'data/trilegal/' + name + '*'))#[:5]
 heights = []
 ages = []
 fs = []
@@ -466,8 +466,8 @@ y = np.where(x <= threshold, frac1, frac2)
 #y = b + m * x
 
 # piecewise model
-#m = (frac2 - frac1)/(x[-1] - threshold)
-#y = np.where(x < threshold, frac1, frac1 + m * (x-threshold))
+m = (frac2 - frac1)/(x[-1] - threshold)
+y = np.where(x < threshold, frac1, frac1 + m * (x-threshold))
 
 ax2.plot(x, y, color='powderblue')
 ax2.set_xlabel('cosmic age [Gyr]')
@@ -486,5 +486,18 @@ plt.savefig(path+'plots/trilegal/trilegal_model_vs_zink_'+name+'_empirical_compl
 #plt.savefig(path+'plots/'+name)
 plt.show()
 
+"""
+# planet host fractions
+step functions
+model 1, (12, 20, 80): 0.30, or (12, 25, 80): 0.36, or (12, 25, 75): 0.35, or (12, 25, 70): 0.34, or (12, 25, 50): 0.30
+model 2, (11.5, 10, 80): 0.31, or (11.5, 15, 70): 0.31 (bad both ways), or (11.5, 15, 65): 0.30 (nope, overshot it), or (11.5, 20, 65): 0.33
+model 3, (11, 15, 60): 0.30, or (11, 10, 65): 0.32 
+model 4, (9.5, 5, 45): 0.30
+model 5, (7.5, 1, 40): 0.33
+model 6, (5.5, 1, 35): 0.34, or (5.5, 1, 30): 0.29
 
-
+piecewise functions
+model 1, (7.5, 1, 40): 0.33, -0.36 +/- 0.19, normalization a hair high but slope is good
+model 2, (7, 10, 55): 0.32, -0.37 +/- 0.17, the most perfect model I have ever seen
+model 3 (5, 10, 45): 
+"""

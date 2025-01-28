@@ -129,7 +129,7 @@ model_flag = 'rayleigh'
 # planet formation history model parameters
 threshold = 3.5 # cosmic age in Gyr; 13.7 minus stellar age, then round
 frac1 = 0.01 # frac1 must be < frac2 if comparing cosmic ages
-frac2 = 0.6 # 0.55 led to f=0.3, high Z being too high, low Z being a bit low; yet, 0.6 led to f=0.23...?
+frac2 = 0.4 # 0.55 led to f=0.3, high Z being too high, low Z being a bit low; yet, 0.6 led to f=0.23...?
 # 10, 0.15, 0.55 led to f=0.28, high Z being fine, low Z being a bit low; 10, 0.15, 0.6, f=0.3, low Z too high, high Z too low --> 10, 0.25, 0.5, led to f=0.34, low Z too low, high Z too high (basically flat) --> 10, 0.2, 0.6, led to f=0.34 and basically flat --> 10, 0.1, 0.7, f=0.31, low Z is good, high Z is a bit high --> 10, 0.05, 0.7, f=0.28, perfect match tho
 # 5.5, 0.01, 0.4 led to f=0.3, flat line with high Z just above, low Z being way too low
 # 12, 0.15, 0.7 led to f=0.21, low Z is way too low --> 12, 0.2, 0.85 led to f=0.28, low Z almost there --> 12, 0.25, 0.9 led to f=0.33, perfect low Z, high Z a bit high --> 12, 0.2, 0.9 led to f=0.28, low Z a bit low again.
@@ -184,7 +184,7 @@ quit()
 
 #height_bins = np.linspace(0, 1500, 31)
 # for each model, draw around stellar age errors 10 times
-for j in tqdm(range(3)): 
+for j in tqdm(range(2)): 
 
     #berger_kepler['iso_age_err1'] = berger_kepler['iso_age_err1'] * 2
     #berger_kepler['iso_age_err2'] = berger_kepler['iso_age_err2'] * 2
@@ -209,7 +209,7 @@ for j in tqdm(range(3)):
     pop = Population(berger_kepler_temp['age'], threshold, frac1, frac2)
     frac_hosts = pop.galactic_occurrence_step(threshold, frac1, frac2)
     #frac_hosts = pop.galactic_occurrence_monotonic(frac1, frac2)
-    frac_hosts = pop.galactic_occurrence_piecewise(frac1, frac2, threshold)
+    #frac_hosts = pop.galactic_occurrence_piecewise(frac1, frac2, threshold)
 
     alpha_se = np.random.normal(-1., 0.2)
     alpha_sn = np.random.normal(-1.5, 0.1)
@@ -472,7 +472,7 @@ zink_kepler = pd.DataFrame({'scale_height': np.array([120., 200., 300., 500., 80
 print("")
 print("fs: ", fs)
 print("")
-quit()
+#quit()
 
 mean_physical_planet_occurrences = np.mean(physical_planet_occurrences, axis=0)
 yerr = np.std(physical_planet_occurrences, axis=0)

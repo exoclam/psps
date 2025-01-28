@@ -264,3 +264,49 @@ def plot_completeness(mean_completeness_map, std_completeness_map, radius_grid, 
     plt.show()
 
     return
+
+def plot_host_vs_height(df_all, df_planets):
+    """
+    Figure of scatter points, one per system, color-coded by host/not-host
+    Y axis is Zmax. X axis is arbitrary. 
+
+    Args:
+        df_all (pandas DataFrame): of all systems, eg. trilegal_kepler_all or berger_kepler_all
+        df_planets (pd DataFrame): of only planet-hosting systems
+    """
+    
+    df_none = df_all.loc[df_all['num_planets'].isnull()]
+    df_none = df_none.reset_index()
+    
+    df_planets = df_planets.reset_index()
+
+    # randomize indices so hosts and non-hosts aren't bunched up together 
+    len_total = len(df_none)+len(df_planets)
+    pre_shuffled_index = np.linspace(0, len_total-1, len_total)
+    np.random.shuffle(pre_shuffled_index) 
+
+    df_none['shuffled_index'] = pre_shuffled_index[:len(df_none)]
+    df_planets['shuffled_index'] = pre_shuffled_index[len(df_none):]
+
+    plt.scatter(df_none['shuffled_index'], df_none['height'], s=5, alpha=0.5, color='powderblue', label='non-host')
+    plt.scatter(df_planets['shuffled_index'], df_planets['height'], s=5, alpha=0.5, color='steelblue', label='host')
+    plt.xlabel('star index')
+    plt.ylabel(r'$Z_{max}$ [pc]')
+    plt.tight_layout()
+    plt.legend()
+    plt.savefig(path+'plots/color-code.png')
+    #plt.show()
+
+    return
+
+def plot_age_vs_height(df_all, df_planets):
+    """
+    Figure of scatter points, one per system, color-coded by age
+    Y axis is Zmax. X axis is arbitrary. 
+
+    Args:
+        df_all (pandas DataFrame): of all systems, eg. trilegal_kepler_all or berger_kepler_all
+        df_planets (pd DataFrame): of only planet-hosting systems
+    """
+
+    return

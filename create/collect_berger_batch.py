@@ -103,20 +103,23 @@ threshold = 10. # f = 0.27
 frac1 = 0.05
 frac2 = 0.7
 
+step (3.5, 1, 35): f=0.30 (low Z too low)
+
 piecewise1: f=0.30
 piecewise2: f=0.30
 piecewise3: f=0.31
 piecewise4: f=0.33 (dropped f2 a smidge) --> f=0.29
+piecewise (3.5, 1, 60): f=too small; (3.5, 1, 60): f=0.35; (3.5, 1, 70): f=0.33 (tau=-0.15 +/- 0.11; high Z too high)
 """
 
 # operative parameters
-threshold = 5.5
-frac1 = 0.01
-frac2 = 0.40
+threshold = 11
+frac1 = 0.15
+frac2 = 0.80
 
-name_thresh = 55
-name_f1 = 1
-name_f2 = 40
+name_thresh = 11
+name_f1 = 15
+name_f2 = 80
 name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 #name = 'monotonic_'+str(name_f1)+'_'+str(name_f2) # f=
 #name = 'piecewise_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2) # f=0.31, f=0.30, f=
@@ -149,8 +152,11 @@ height_bins = np.array([0., 120, 200, 300, 500, 800, 1500]) # the actual Zink Fi
 height_bins = np.logspace(2, 3, 6) # ah, so the above are the midpoints of the actual bins they used, I guess
 height_bin_midpoints = 0.5 * (np.logspace(2,3,6)[1:] + np.logspace(2,3,6)[:-1])
 for i in tqdm(range(len(sim))):
-    berger_kepler_all = pd.read_csv(sim[i], sep=',') #, on_bad_lines='skip'
     print(sim[i])
+    try:
+        berger_kepler_all = pd.read_csv(sim[i], sep=',') #, on_bad_lines='skip'
+    except:
+        continue
     #berger_kepler_all = pd.read_csv(path+'data/berger_gala/'+name+'.csv')
 
     num_hosts = berger_kepler_all.loc[berger_kepler_all['num_planets']>0]
@@ -234,6 +240,10 @@ for i in tqdm(range(len(sim))):
 
         # need kepid to be str or tuple, else unhashable type when groupby.count()
         berger_kepler_planets['kepid'] = berger_kepler_planets['kepid'].apply(str) 
+
+        # plot color-coded visualization
+        utils.plot_host_vs_height(berger_kepler_all, berger_kepler_planets)
+        quit()
 
         # isolate detected transiting planets
         berger_kepler_transiters = berger_kepler_planets.loc[berger_kepler_planets['transit_status']==1]
