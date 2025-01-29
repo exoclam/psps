@@ -113,13 +113,13 @@ piecewise (3.5, 1, 60): f=too small; (3.5, 1, 60): f=0.35; (3.5, 1, 70): f=0.33 
 """
 
 # operative parameters
-threshold = 11
-frac1 = 0.15
-frac2 = 0.80
+threshold = 9.5
+frac1 = 0.10
+frac2 = 0.65
 
-name_thresh = 11
-name_f1 = 15
-name_f2 = 80
+name_thresh = 95
+name_f1 = 10
+name_f2 = 65
 name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 #name = 'monotonic_'+str(name_f1)+'_'+str(name_f2) # f=
 #name = 'piecewise_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2) # f=0.31, f=0.30, f=
@@ -242,8 +242,8 @@ for i in tqdm(range(len(sim))):
         berger_kepler_planets['kepid'] = berger_kepler_planets['kepid'].apply(str) 
 
         # plot color-coded visualization
-        #utils.plot_host_vs_height(berger_kepler_all, berger_kepler_planets)
-        utils.plot_age_vs_height(berger_kepler_all)
+        utils.plot_host_vs_height(berger_kepler_all, berger_kepler_planets)
+        #utils.plot_age_vs_height(berger_kepler_all)
         quit()
 
         # isolate detected transiting planets

@@ -302,8 +302,8 @@ def plot_host_vs_height(df_all, df_planets):
     # plotting
     fig, ax = plt.subplots(1, 1, figsize=(8, 8))
 
-    ax.scatter(df_none['shuffled_index'], df_none['height'], s=5, alpha=0.5, color='powderblue', label='non-host')
-    ax.scatter(df_planets['shuffled_index'], df_planets['height'], s=5, alpha=0.5, color='steelblue', label='host')
+    ax.scatter(df_none['shuffled_index'], df_none['height'], s=10, alpha=0.6, color='#CB4335', label='non-host', zorder=1)
+    ax.scatter(df_planets['shuffled_index'], df_planets['height'], s=10, alpha=0.6, color='steelblue', label='host', zorder=2)
     ax.set_xlabel('star index')
     ax.set_ylabel(r'$Z_{max}$ [pc]')
 
@@ -333,13 +333,6 @@ def plot_age_vs_height(df_all):
     df3 = df_all.loc[(df_all['age'] > 4) & (df_all['age'] <= 6)] 
     df4 = df_all.loc[(df_all['age'] > 6) & (df_all['age'] <= 8)] 
     df5 = df_all.loc[(df_all['age'] > 8)] 
-    
-    # randomize indices 
-    pre_shuffled_index = np.linspace(0, len(df_all)-1, len(df_all))
-    np.random.shuffle(pre_shuffled_index) 
-
-    df1['shuffled_index'] = pre_shuffled_index[:len(df1)]
-    #df2['shuffled_index'] = pre_shuffled_index[len(df1):len(df2)]
 
     # bin DF by height
     all1 = df_all.loc[(df_all['height'] > 100) & (df_all['height'] <= np.logspace(2,3,6)[1])]
@@ -355,12 +348,11 @@ def plot_age_vs_height(df_all):
     # plotting
     fig, ax = plt.subplots(1, 1, figsize=(8, 8))
 
-    ax.scatter(df1.index, df1['height'], s=5, alpha=0.5, color='#7D3C98', label='0-2 Gyr')
-    ax.scatter(df2.index, df2['height'], s=5, alpha=0.5, color='#2E86C1', label='2-4 Gyr')
-    ax.scatter(df3.index, df3['height'], s=5, alpha=0.5, color='#138D75', label='4-6 Gyr')
-    ax.scatter(df4.index, df4['height'], s=5, alpha=0.5, color='#D4AC0D', label='6-8 Gyr')
-    ax.scatter(df5.index, df5['height'], s=5, alpha=0.5, color='#CB4335', label='>8 Gyr')
-    #ax.scatter(df_planets['shuffled_index'], df_planets['height'], s=5, alpha=0.5, color='steelblue', label='host')
+    ax.scatter(df1.index, df1['height'], s=5, alpha=0.5, color='#7D3C98', label='0-2 Gyr', zorder=5)
+    ax.scatter(df2.index, df2['height'], s=5, alpha=0.5, color='#2E86C1', label='2-4 Gyr', zorder=4)
+    ax.scatter(df3.index, df3['height'], s=5, alpha=0.5, color='#138D75', label='4-6 Gyr', zorder=3)
+    ax.scatter(df4.index, df4['height'], s=5, alpha=0.5, color='#D4AC0D', label='6-8 Gyr', zorder=2)
+    ax.scatter(df5.index, df5['height'], s=5, alpha=0.5, color='#CB4335', label='>8 Gyr', zorder=1)
     ax.set_xlabel('star index')
     ax.set_ylabel(r'$Z_{max}$ [pc]')
 
