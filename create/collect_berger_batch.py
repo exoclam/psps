@@ -113,13 +113,13 @@ piecewise (3.5, 1, 60): f=too small; (3.5, 1, 60): f=0.35; (3.5, 1, 70): f=0.33 
 """
 
 # operative parameters
-threshold = 9.5
-frac1 = 0.30
-frac2 = 0.30
+threshold = 3.5
+frac1 = 0.01
+frac2 = 0.40
 
-name_thresh = 95
-name_f1 = 30
-name_f2 = 30
+name_thresh = 35
+name_f1 = 1
+name_f2 = 40
 name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 #name = 'monotonic_'+str(name_f1)+'_'+str(name_f2) # f=
 #name = 'piecewise_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2) # f=0.31, f=0.30, f=
@@ -132,7 +132,7 @@ name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 
 #"""
 ### diagnostic plotting age vs height
-sim = sorted(glob(path+'data/berger_gala/' + name + '/' + name + '*'))#[:5]
+sim = sorted(glob(path+'data/berger_gala/' + name + '/' + name + '*'))
 
 heights = []
 ages = []
@@ -221,7 +221,7 @@ for i in tqdm(range(len(sim))):
     piv_detecteds = []
 
     #completeness_all = []
-    for k in range(30): 
+    for k in range(10): 
 
         #berger_kepler_planets_temp = berger_kepler_planets
 
@@ -342,6 +342,12 @@ for i in tqdm(range(len(sim))):
         berger_kepler_transiters4 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > np.logspace(2,3,6)[3]) & (berger_kepler_transiters['height'] <= np.logspace(2,3,6)[4])]
         berger_kepler_transiters5 = berger_kepler_transiters.loc[(berger_kepler_transiters['height'] > np.logspace(2,3,6)[4]) & (berger_kepler_transiters['height'] <= 1000)]
         
+        #print(np.nanmedian(berger_kepler_transiters1['rrmscdpp06p0']))
+        #print(np.nanmedian(berger_kepler_transiters2['rrmscdpp06p0']))
+        #print(np.nanmedian(berger_kepler_transiters3['rrmscdpp06p0']))
+        #print(np.nanmedian(berger_kepler_transiters4['rrmscdpp06p0']))
+        #print(np.nanmedian(berger_kepler_transiters5['rrmscdpp06p0']))
+        #quit()
         #len_berger_kepler_transiters, _ = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters, completeness_map_np, radius_grid, period_grid) #completeness_map_np vs completeness_map
         #print(np.sum(np.mean(physical_planet_occurrences, axis=0)))
         #print(100 * np.sum(len_berger_kepler_transiters/berger_kepler_counts))
@@ -354,6 +360,62 @@ for i in tqdm(range(len(sim))):
         #plt.show()
         #quit()
 
+        """
+        # compare key sensitivity parameters with TRILEGAL across diagnostic bins, to see where the big differences are
+        print("cdpps")
+        print(np.mean(berger_kepler_transiters1['rrmscdpp06p0']), np.std(berger_kepler_transiters1['rrmscdpp06p0']))
+        print(np.mean(berger_kepler_transiters3['rrmscdpp06p0']), np.std(berger_kepler_transiters3['rrmscdpp06p0']))
+        print(np.mean(berger_kepler_transiters5['rrmscdpp06p0']), np.std(berger_kepler_transiters5['rrmscdpp06p0']))
+        plt.hist(berger_kepler_transiters1['rrmscdpp06p0'], label='bin 1', alpha=0.5)
+        #plt.hist(trilegal_kepler_transiters2['rrmscdpp06p0'], label='bin 2', alpha=0.5)
+        plt.hist(berger_kepler_transiters3['rrmscdpp06p0'], label='bin 3', alpha=0.5)
+        #plt.hist(trilegal_kepler_transiters4['rrmscdpp06p0'], label='bin 4', alpha=0.5)
+        plt.hist(berger_kepler_transiters5['rrmscdpp06p0'], label='bin 5', alpha=0.5)
+        plt.xlabel('CDPP (6 hr) [ppm]')
+        plt.legend()
+        plt.show()
+
+        print("stellar radius")
+        print(np.mean(berger_kepler_transiters1['stellar_radius']), np.std(berger_kepler_transiters1['stellar_radius']))
+        print(np.mean(berger_kepler_transiters3['stellar_radius']), np.std(berger_kepler_transiters3['stellar_radius']))
+        print(np.mean(berger_kepler_transiters5['stellar_radius']), np.std(berger_kepler_transiters5['stellar_radius']))
+        plt.hist(berger_kepler_transiters1['stellar_radius'], label='bin 1', alpha=0.5)
+        #plt.hist(trilegal_kepler_transiters2['stellar_radius'], label='bin 2', alpha=0.5)
+        plt.hist(berger_kepler_transiters3['stellar_radius'], label='bin 3', alpha=0.5)
+        #plt.hist(trilegal_kepler_transiters4['stellar_radius'], label='bin 4', alpha=0.5)
+        plt.hist(berger_kepler_transiters5['stellar_radius'], label='bin 5', alpha=0.5)
+        plt.xlabel('stellar radius [Solar radius]')
+        plt.legend()
+        plt.show()
+
+        print("s/n")
+        print(np.mean(berger_kepler_transiters1['sn']), np.std(berger_kepler_transiters1['sn']))
+        print(np.mean(berger_kepler_transiters3['sn']), np.std(berger_kepler_transiters3['sn']))
+        print(np.mean(berger_kepler_transiters5['sn']), np.std(berger_kepler_transiters5['sn']))
+        plt.hist(berger_kepler_transiters1['sn'], label='bin 1', alpha=0.5)
+        #plt.hist(trilegal_kepler_transiters2['sn'], label='bin 2', alpha=0.5)
+        plt.hist(berger_kepler_transiters3['sn'], label='bin 3', alpha=0.5)
+        #plt.hist(trilegal_kepler_transiters4['sn'], label='bin 4', alpha=0.5)
+        plt.hist(berger_kepler_transiters5['sn'], label='bin 5', alpha=0.5)
+        plt.xlabel('s/n')
+        plt.legend()
+        plt.show()
+
+        print("age")
+        print(np.mean(berger_kepler_transiters1['age']), np.std(berger_kepler_transiters1['age']))
+        print(np.mean(berger_kepler_transiters3['age']), np.std(berger_kepler_transiters3['age']))
+        print(np.mean(berger_kepler_transiters5['age']), np.std(berger_kepler_transiters5['age']))
+        plt.hist(berger_kepler_transiters1['age'], label='bin 1', alpha=0.5)
+        #plt.hist(trilegal_kepler_transiters2['age'], label='bin 2', alpha=0.5)
+        plt.hist(berger_kepler_transiters3['age'], label='bin 3', alpha=0.5)
+        #plt.hist(trilegal_kepler_transiters4['age'], label='bin 4', alpha=0.5)
+        plt.hist(berger_kepler_transiters5['age'], label='bin 5', alpha=0.5)
+        plt.xlabel('age [Gyr]')
+        plt.legend()
+        plt.show()
+        quit()
+        """
+
         #"""
         len_berger_kepler_transiters1, _ = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters1, completeness_map, radius_grid, period_grid) #completeness_map_np vs completeness_map
         len_berger_kepler_transiters2, _ = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters2, completeness_map, radius_grid, period_grid)
@@ -362,7 +424,7 @@ for i in tqdm(range(len(sim))):
         len_berger_kepler_transiters5, _ = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters5, completeness_map, radius_grid, period_grid)
         len_berger_kepler_transiters = np.array([len_berger_kepler_transiters1, len_berger_kepler_transiters2, len_berger_kepler_transiters3, len_berger_kepler_transiters4, len_berger_kepler_transiters5])
 
-        len_berger_kepler_recovered, recovered_piv = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters, completeness_map, radius_grid, period_grid)
+        #len_berger_kepler_recovered, recovered_piv = simulate_helpers.adjust_for_completeness(berger_kepler_transiters, completeness_map, radius_grid, period_grid)
         """
         print("physical piv: ", piv_physical)
         print("detected piv: ", piv_detected)
@@ -436,7 +498,7 @@ heights = np.concatenate(heights)
 ages = np.concatenate(ages)
 
 """
-#fplt.(heights, ages, bins=40)
+#plt.(heights, ages, bins=40)
 norm = 10
 hist, xedges, yedges = np.histogram2d(ages, heights, bins=20)
 hist = hist.T
@@ -445,7 +507,7 @@ hist = hist.T
     #hist *= norm / hist.sum(axis=1, keepdims=True)
 plt.pcolormesh(xedges, yedges, hist, cmap='Blues')
 
-plt.ylabel('r"$Z_{max}$ [pc]"')
+plt.ylabel(r'$Z_{max}$ [pc]')
 plt.xlabel('age [Gyr]')
 #plt.xscale('log')
 #plt.xlim([0, 1500])
@@ -631,7 +693,7 @@ ax2.set_ylabel('planet host fraction')
 ax2.set_ylim([0,1])
 
 fig.tight_layout()
-plt.savefig(path+'plots/model_vs_zink_'+name+'_empirical_completeness.png', format='png', bbox_inches='tight')
+#plt.savefig(path+'plots/model_vs_zink_'+name+'_empirical_completeness.png', format='png', bbox_inches='tight')
 
 #plt.errorbar(x=zink_kepler['scale_height'], y=zink_kepler['occurrence'], yerr=(zink_kepler['occurrence_err1'], zink_kepler['occurrence_err2']), fmt='o', capsize=3, elinewidth=1, markeredgewidth=1, label='Zink+ 2023 Kepler data')
 #plt.scatter(x=zink_kepler['scale_height'], y=physical_planet_occurrence, c='red', label='model')

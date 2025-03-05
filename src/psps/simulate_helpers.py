@@ -85,6 +85,10 @@ def degrees_to_radians(deg):
 def radians_to_degrees(rad):
     return rad*180/np.pi
 
+def m_to_M(m, dist):
+    # convert apparent to absolute magnitude
+    return m - 5 * np.log10(dist) + 5
+
 ### basic physics equations
 def distance_modulus_to_distance(mu, perturb=False):
     """
@@ -118,7 +122,7 @@ def dist_kepler_to_height(d):
     """
 
     incl = degrees_to_radians(13.5)
-    h = d * np.tan(incl)
+    h = d * np.sin(incl)
 
     return h
 
@@ -711,7 +715,7 @@ def kepmag_to_cdpp(df, new_kepmag):
 
     # Create 2D histogram
     xbins = np.linspace(8, 16, 100)
-    ybins = np.linspace(0, 500, 100)
+    ybins = np.linspace(0, 1000, 100) 
     hist, yedges, xedges = np.histogram2d(cdpp, kepmag, bins=[ybins, xbins])
 
     # for each element in new_kepmag, get closest index along Kep mag (x axis)
@@ -737,6 +741,200 @@ def kepmag_to_cdpp(df, new_kepmag):
     #plt.show()
 
     return xbins[new_kepmag_snaps], new_cdpp_snaps
+
+def kepmag_to_cdpp_vectorized(data1, data2):
+
+    """
+    Use Kepler mag vs CDPP (6 hr) relation from Berger Kepler-Gaia crossmatch to infer CDPP given simulated kepmag from TRILEGAL, etc
+    Fold in Teff and galactic height, since these bear indirectly on noise properties and directly on experimental dependent variables
+    Inputs:
+    - data1: reference DataFrame, with Kepler mag and CDPP
+    - data2: target DataFrame from which to sample
+
+    Output:
+    #- cdpps: new array of CDPPs
+    - new_data2: this operation culls records that have NaN heights, etc. So let's use this opportunity to cull the entire DF, rather than output a column of different length from the original
+    """
+
+    #cols_to_match = ['mag_bins', 'teff_bins', 'age_bins']
+    cols_to_match = ['mag_bins', 'stellar_radius_bins', 'teff_bins', 'logg_bins', 'age_bins', 'height_bins']
+    logg_bins = np.linspace(3.0, 4.6, 5) 
+    teff_bins = np.linspace(5300, 7500, 50)
+    mag_bins = np.linspace(8, 16, 5)
+    age_bins = np.linspace(0, 8, 10)
+    stellar_radius_bins = np.linspace(1, 3.5, 5)
+    cdpp_bins = np.linspace(0, 100, 10)
+    height_bins = np.logspace(2,3,6)
+
+    # reference DataFrame
+    data1['mag_bins'] = pd.cut(data1['kepmag'], bins=mag_bins, include_lowest=True)
+    data1['logg_bins'] = pd.cut(data1['iso_logg'], bins=logg_bins, include_lowest=True)
+    data1['teff_bins'] = pd.cut(data1['iso_teff'], bins=teff_bins, include_lowest=True)
+    data1['stellar_radius_bins'] = pd.cut(data1['iso_rad'], bins=stellar_radius_bins, include_lowest=True)
+    #data1['cdpp_bins'] = pd.cut(data1['rrmscdpp06p0'], bins=cdpp_bins, include_lowest=True)
+    data1['height_bins'] = pd.cut(data1['height'], bins=height_bins, include_lowest=True)
+    data1['age_bins'] = pd.cut(data1['age'], bins=age_bins, include_lowest=True)
+
+    data1_cdpp_mean = data1.groupby(cols_to_match)['rrmscdpp06p0'].mean().reset_index()
+    data1_cdpp_mean = data1_cdpp_mean.pivot(index='mag_bins', columns=cols_to_match[1:])
+
+    data1_cdpp_std = data1.groupby(cols_to_match)['rrmscdpp06p0'].std().reset_index()
+    data1_cdpp_std = data1_cdpp_std.pivot(index='mag_bins', columns=cols_to_match[1:])
+
+    # unstack pivot tables
+    data1_unstacked_mean = data1_cdpp_mean.unstack().reset_index()
+    data1_unstacked_mean = data1_unstacked_mean[['mag_bins', 'stellar_radius_bins', 'teff_bins', 'logg_bins', 'age_bins', 'height_bins',0]]
+    data1_unstacked_mean.columns = ['mag_bins', 'stellar_radius_bins', 'teff_bins', 'logg_bins', 'age_bins', 'height_bins','cdpp_mean']
+    data1_unstacked_mean.dropna(subset=['cdpp_mean'], inplace=True)
+    #print(data1_unstacked_mean)
+
+    data1_unstacked_std = data1_cdpp_std.unstack().reset_index()
+    data1_unstacked_std = data1_unstacked_std[['mag_bins', 'stellar_radius_bins', 'teff_bins', 'logg_bins', 'age_bins', 'height_bins',0]]
+    data1_unstacked_std.columns = ['mag_bins', 'stellar_radius_bins', 'teff_bins', 'logg_bins', 'age_bins', 'height_bins','cdpp_std']
+    data1_unstacked_std.dropna(subset=['cdpp_std'], inplace=True)
+    #print(data1_unstacked_std)
+
+    # target DataFrame from which to sample
+    data2['mag_bins'] = pd.cut(data2['Kepler'], bins=mag_bins, include_lowest=True)
+    data2['logg_bins'] = pd.cut(data2['logg'], bins=logg_bins, include_lowest=True)
+    data2['teff_bins'] = pd.cut(data2['Teff'], bins=teff_bins, include_lowest=True)
+    data2['stellar_radius_bins'] = pd.cut(data2['stellar_radius'], bins=stellar_radius_bins, include_lowest=True)
+    #data2['cdpp_bins'] = pd.cut(data2['cdpp'], bins=cdpp_bins, include_lowest=True)
+    data2['height_bins'] = pd.cut(data2['height'], bins=height_bins, include_lowest=True)
+    data2['age_bins'] = pd.cut(data2['age'], bins=age_bins, include_lowest=True)
+    #print(data2)
+
+    # merge the DataFrames on the multiple columns
+    new_data2 = pd.merge(data2, data1_unstacked_mean, on=cols_to_match, how='inner')
+    new_data2.dropna(subset=['cdpp_mean'], inplace=True)
+
+    new_data2 = pd.merge(new_data2, data1_unstacked_std, on=cols_to_match, how='inner')
+    new_data2.dropna(subset=['cdpp_std'], inplace=True)
+    #print(new_data2)
+
+    # sample from target
+    new_data2['cdpp'] = np.random.normal(new_data2['cdpp_mean'], new_data2['cdpp_std'])
+
+    return new_data2
+
+def kepmag_to_cdpp_3d(df, new_kepmag, new_teff):
+
+    """
+    Use Kepler mag vs CDPP (6 hr) relation from Berger Kepler-Gaia crossmatch to infer CDPP given simulated kepmag from TRILEGAL, etc
+    But wait! This relation changes across spectral type. So we need to sample cdpp jointly per kepmag and teff. 
+    Even this doesn't fully correct things. 
+    Inputs:
+    - df: reference DataFrame, with Kepler mag, CDPP, and Teff, eg. Berger20
+    - new_kepmag: new Series of Kepler magnitudes, for which I want to sample new CDPPs, eg. from TRILEGAL
+    - new_teff: Series of Teff from TRILEGAL
+    - new_radius? 
+
+    Output:    
+    - new_cdpp_snaps: new array of CDPPs
+    """
+
+    new_kepmag = np.array(new_kepmag)
+    new_teff = np.array(new_teff)
+    new_df = pd.DataFrame({'kepmag': new_kepmag, 'teff': new_teff})
+
+    df = df.dropna(subset=['kepmag', 'rrmscdpp06p0', 'iso_teff'])
+    ### cull Berger20 reference data to Kepler mag and Teff limits of TRILEGAL
+    #df = df.loc[(df['kepmag'] >= 8) & (df['kepmag'] <= 16)]
+    #df = df.loc[(df['iso_teff'] >= 3500) & (df['iso_teff'] <= 7500)]
+    #plt.hist(df['iso_teff'], bins=np.linspace(3500, 7500, 100))
+    #plt.show()
+    #quit()
+
+    mag_bins = np.linspace(8, 16, 100)
+    cdpp_bins = np.linspace(0, 200, 100) 
+    teff_bins = np.linspace(4800, 7500, 100)
+
+    df['mag_bins'] = pd.cut(df['kepmag'], bins=mag_bins, include_lowest=True)
+    df['teff_bins'] = pd.cut(df['iso_teff'], bins=teff_bins, include_lowest=True)
+    #df['cdpp_bins'] = pd.cut(df['rrmscdpp06p0'], bins=cdpp_bins, include_lowest=True)
+
+    new_df['mag_bins'] = pd.cut(new_df['kepmag'], bins=mag_bins, include_lowest=True)
+    new_df['teff_bins'] = pd.cut(new_df['teff'], bins=teff_bins, include_lowest=True)
+
+    def find_nearest_pd(df, new_kepmag_bin, new_teff_bin):
+        sub_df = df.loc[(df['mag_bins'] == new_kepmag_bin) & (df['teff_bins'] == new_teff_bin)]
+        cdpp_mean = np.nanmean(sub_df['rrmscdpp06p0'])
+        cdpp_std = np.nanstd(sub_df['rrmscdpp06p0'])
+        cdpp_draw = np.random.normal(cdpp_mean, cdpp_std)
+        return cdpp_draw
+
+    cdpps = []
+    for i in range(len(new_df)):
+        row = new_df.iloc[i]
+
+        cdpp_draw = find_nearest_pd(df, row['mag_bins'], row['teff_bins'])
+        cdpps.append(cdpp_draw)
+
+    new_df['cdpp'] = cdpps
+
+    return np.array(new_df['cdpp'])
+    
+
+def kepmag_to_cdpp_height(df, new_kepmag, new_teff, new_height):
+
+    """
+    Use Kepler mag vs CDPP (6 hr) relation from Berger Kepler-Gaia crossmatch to infer CDPP given simulated kepmag from TRILEGAL, etc
+    Matched-sample by radius and height as well, since without it, cdpp and radius per height bin drop off way more in trilegal than b20.
+
+    Inputs:
+    - df: reference DataFrame, with Kepler mag, CDPP, and Teff, eg. Berger20
+    - new_kepmag: new Series of Kepler magnitudes, for which I want to sample new CDPPs, eg. from TRILEGAL
+    - new_teff: Series of Teff from TRILEGAL
+    - new_height: Series of calculated heights from TRILEGAL 
+
+    Output:    
+    - new_cdpp_snaps: new array of CDPPs
+    """
+
+    new_kepmag = np.array(new_kepmag)
+    new_teff = np.array(new_teff)
+    new_height = np.array(new_height)
+    new_df = pd.DataFrame({'kepmag': new_kepmag, 'teff': new_teff, 'height': new_height})
+
+    df = df.dropna(subset=['kepmag', 'rrmscdpp06p0', 'iso_teff', 'height'])
+    ### cull Berger20 reference data to Kepler mag and Teff limits of TRILEGAL
+    #df = df.loc[(df['kepmag'] >= 8) & (df['kepmag'] <= 16)]
+    #df = df.loc[(df['iso_teff'] >= 3500) & (df['iso_teff'] <= 7500)]
+    #plt.hist(df['iso_teff'], bins=np.linspace(3500, 7500, 100))
+    #plt.show()
+    #quit()
+
+    mag_bins = np.linspace(8, 16, 100)
+    cdpp_bins = np.linspace(0, 200, 100) 
+    teff_bins = np.linspace(4800, 7500, 100)
+    height_bins = np.logspace(2, 3, 6)
+
+    df['mag_bins'] = pd.cut(df['kepmag'], bins=mag_bins, include_lowest=True)
+    df['teff_bins'] = pd.cut(df['iso_teff'], bins=teff_bins, include_lowest=True)
+    df['height_bins'] = pd.cut(df['height'], bins=height_bins, include_lowest=True)
+    #df['cdpp_bins'] = pd.cut(df['rrmscdpp06p0'], bins=cdpp_bins, include_lowest=True)
+
+    new_df['mag_bins'] = pd.cut(new_df['kepmag'], bins=mag_bins, include_lowest=True)
+    new_df['teff_bins'] = pd.cut(new_df['teff'], bins=teff_bins, include_lowest=True)
+    new_df['height_bins'] = pd.cut(df['height'], bins=height_bins, include_lowest=True)
+
+    def find_nearest_pd(df, new_kepmag_bin, new_teff_bin):
+        sub_df = df.loc[(df['mag_bins'] == new_kepmag_bin) & (df['teff_bins'] == new_teff_bin)]
+        cdpp_mean = np.nanmean(sub_df['rrmscdpp06p0'])
+        cdpp_std = np.nanstd(sub_df['rrmscdpp06p0'])
+        cdpp_draw = np.random.normal(cdpp_mean, cdpp_std)
+        return cdpp_draw
+
+    cdpps = []
+    for i in range(len(new_df)):
+        row = new_df.iloc[i]
+
+        cdpp_draw = find_nearest_pd(df, row['mag_bins'], row['teff_bins'])
+        cdpps.append(cdpp_draw)
+
+    new_df['cdpp'] = cdpps
+
+    return np.array(new_df['cdpp'])
 
 def make_pdf_rows(x, mode, err1, err2):
     """
@@ -799,10 +997,17 @@ def draw_asymmetrically(df, mode_name, err1_name, err2_name, drawn):
         x = np.linspace(0.5, 5., 100)
     elif drawn=='stellar_mass':
         x = np.linspace(0.5, 2.5, 100)
+    elif drawn=='stellar_teff':
+        x = np.linspace(2000, 7500, 1000)
+    elif drawn=='stellar_feh':
+        x = np.linspace(-0.5, 0.5, 100)
     elif drawn=='distance':
         x = np.linspace(0, 5000, 1000)
+    elif drawn=='planet_radius':
+        x = np.linspace(0.5, 10, 100)
+
     else: 
-        print("Please create a column that is either age, gyro_age, stellar_radius, or stellar_mass!")
+        print("Please create a column that is either age, gyro_age, stellar_radius, stellar_mass, distance, planet_radius, stellar_feh, or stellar_teff!")
 
     """
     TESTING
@@ -813,12 +1018,17 @@ def draw_asymmetrically(df, mode_name, err1_name, err2_name, drawn):
     print("draw: ", draw)
     """
 
-    draws = np.ones(len(uniques))
-    for i in range(len(uniques)):
-        mode = uniques.iloc[i][mode_name]
-        err1 = uniques.iloc[i][err1_name]
-        err2 = np.abs(uniques.iloc[i][err2_name])
+    if drawn=='planet_radius':
+        df_or_uniques = df
+    else:
+        df_or_uniques = uniques
 
+    draws = np.ones(len(df_or_uniques))
+    for i in range(len(df_or_uniques)):
+        mode = df_or_uniques.iloc[i][mode_name]
+        err1 = df_or_uniques.iloc[i][err1_name]
+        err2 = np.abs(df_or_uniques.iloc[i][err2_name])
+        
         # symmetric uncertainties
         if err1==err2:
             draw = 0
@@ -834,13 +1044,15 @@ def draw_asymmetrically(df, mode_name, err1_name, err2_name, drawn):
                 draw = 0
                 while draw <= 0: # make sure the draw is positive
                     draw = np.around(np.random.choice(x, p=pdf), 2)
-            except:
+            except Exception as e:
                 print("EXCEPTION: ", i, pdf, mode, err1, err2)
+                print(e)
                 break
-        
+        print(mode, err1, err2, draw)
         draws[i] = draw
 
-    df[drawn] = draws
+    #print(len(df), len(draws), len(uniques))
+    df_or_uniques[drawn] = draws
 
     # break back out into planet rows and forward fill across systems
     df = uniques.merge(df, how='right')
@@ -1309,7 +1521,7 @@ def completeness(physical, detected):
     geom = physical.loc[physical['geom_transit_status']==1]
     #print(geom.loc[((geom['planet_radii'] > 3.667) & (geom['planet_radii'] <= 4) & (geom['periods'] > 3.49) & (geom['periods'] <= 6.09))])
 
-    period_grid = np.logspace(np.log10(2), np.log10(300), 10)
+    period_grid = np.logspace(np.log10(2), np.log10(40), 10)
     radius_grid = np.linspace(1, 4, 10)
 
     # physical occurrence map
@@ -1333,6 +1545,69 @@ def completeness(physical, detected):
 
     return piv, piv_physical, piv_detected
 
+def completeness_height(detected1, physical):
+    """
+    Take period-radius completeness map-adjusted yield, which did not factor height-related stellar parameters (Kmag --> CDPP)
+    Args:
+        detected1 (np.array): period-radius completeness map-adjusted yield
+        physical (np.array): actual, physical synthetic yield
+
+    Returns:
+        detected2 (Pandas DataFrame): height-bin-adjusted yield
+    """
+    #print(detected1)
+    #print(physical)
+    efficiency = detected1 / physical
+    #print(efficiency)
+    detected2 = detected1 / efficiency
+    #print(detected2)
+    #quit()
+    return detected2
+
+def completeness_3d(physical, detected):
+    """
+    Calculate completeness (geometric transit + sensitivity = detected) across period and radius bins
+
+    Inputs:
+    - physical: all simulated 
+    - detected: 
+
+    Output:
+    - piv: Pandas pivot table of completeness fractions across period and radius bins
+    """
+
+    geom = physical.loc[physical['geom_transit_status']==1]
+    #print(geom.loc[((geom['planet_radii'] > 3.667) & (geom['planet_radii'] <= 4) & (geom['periods'] > 3.49) & (geom['periods'] <= 6.09))])
+
+    period_grid = np.logspace(np.log10(2), np.log10(40), 5)
+    radius_grid = np.linspace(1, 4, 5)
+    height_grid = np.logspace(2, 3, 6)
+
+    # physical occurrence map
+    df_physical = physical[['periods', 'planet_radii', 'height']]
+    df_physical['radius_bins'] = pd.cut(df_physical['planet_radii'], bins=radius_grid, include_lowest=True)
+    df_physical['period_bins'] = pd.cut(df_physical['periods'], bins=period_grid, include_lowest=True)
+    df_physical['height_bins'] = pd.cut(df_physical['height'], bins=height_grid, include_lowest=True)
+    #print(physical.loc[((physical['planet_radii'] > 3.667) & (physical['planet_radii'] <= 4) & (physical['periods'] > 3.49) & (physical['periods'] <= 6.09))])
+    
+    piv_physical = df_physical.groupby(['period_bins', 'radius_bins', 'height_bins']).count().reset_index()
+
+    piv_physical = piv_physical.pivot(index='radius_bins', columns=['period_bins', 'height_bins'], values=['periods'])
+    #print(piv_physical)
+    
+    # detected occurrence map
+    df_detected = detected[['periods', 'planet_radii', 'height']]
+    df_detected['radius_bins'] = pd.cut(df_detected['planet_radii'], bins=radius_grid, include_lowest=True)
+    df_detected['period_bins'] = pd.cut(df_detected['periods'], bins=period_grid, include_lowest=True)
+    df_detected['height_bins'] = pd.cut(df_detected['height'], bins=height_grid, include_lowest=True)
+    #print(detected.loc[((detected['planet_radii'] > 3.667) & (detected['planet_radii'] <= 4) & (detected['periods'] > 3.49) & (detected['periods'] <= 6.09))])
+
+    piv_detected = df_detected.groupby(['period_bins', 'radius_bins', 'height_bins']).count().reset_index()
+    piv_detected = piv_detected.pivot(index='radius_bins', columns=['period_bins', 'height_bins'], values=['periods'])
+    piv = piv_detected/piv_physical
+
+    return piv, piv_physical, piv_detected
+
 def adjust_for_completeness(df, completeness_map, radius_grid, period_grid, flag="detected"):
 
     """
@@ -1350,6 +1625,9 @@ def adjust_for_completeness(df, completeness_map, radius_grid, period_grid, flag
     - df_piv: radius-and-period divided occurrence
     """
 
+    period_grid = np.logspace(np.log10(2), np.log10(40), 10)
+    radius_grid = np.linspace(1, 4, 10)
+    
     # For detected planets, use completeness map to get back an inferred physical occurrence
     df['radius_bins'] = pd.cut(df['planet_radii'], bins=radius_grid, include_lowest=True)
     df['period_bins'] = pd.cut(df['periods'], bins=period_grid, include_lowest=True)
@@ -1409,6 +1687,8 @@ def adjust_for_completeness2(df, completeness_map, radius_grid, period_grid):
 
     """
     
+    period_grid = np.logspace(np.log10(2), np.log10(40), 10)
+    radius_grid = np.linspace(1, 4, 10)
     # new, experimental way of applying completeness map
     df['radius_bins'] = pd.cut(df['planet_radii'], bins=radius_grid, include_lowest=True)
     df['period_bins'] = pd.cut(df['periods'], bins=period_grid, include_lowest=True)
@@ -1418,6 +1698,46 @@ def adjust_for_completeness2(df, completeness_map, radius_grid, period_grid):
     df_small = df_small.groupby(['radius_bins','period_bins']).sum(['transit_status']).reset_index()
     df_piv = df_small.pivot(index='radius_bins', columns='period_bins', values='transit_status')
     piv = df_piv.to_numpy()
+    piv = np.flip(piv, axis=0)/completeness_map
+    adjusted_count = np.nansum(piv)
+
+    return adjusted_count, piv
+
+def adjust_for_completeness_3d(df, completeness_map, radius_grid, period_grid):
+    
+    """
+    For a given DataFrame of planets, group by radius and period bins, then take completeness map and adjust transit_status counts per cell
+
+    Inputs:
+    - df: DataFrame of planets
+    - completeness map: completeness map of detected vs generated planets, grouped by radius and period bins
+    - radius_grid: list of radius bins
+    - period_grid: list of period bins
+    - flag: DataFrame of either raw or detected planets, labeled "physical" or "detected"
+
+    Output:
+    - adjusted_count: completeness-adjusted count of planets
+    - piv: radius-and-period divided occurrence
+
+    """
+
+    period_grid = np.logspace(np.log10(2), np.log10(40), 5)
+    radius_grid = np.linspace(1, 4, 5)
+    height_grid = np.logspace(2, 3, 6)
+
+    # new, experimental way of applying completeness map
+    df['radius_bins'] = pd.cut(df['planet_radii'], bins=radius_grid, include_lowest=True)
+    df['period_bins'] = pd.cut(df['periods'], bins=period_grid, include_lowest=True)
+    df['height_bins'] = pd.cut(df['height'], bins=height_grid, include_lowest=True)
+    df_small = df[['radius_bins', 'period_bins', 'height_bins', 'transit_status']]
+    
+    # make sure both maps are oriented the same way
+    df_small = df_small.groupby(['radius_bins','period_bins','height_bins']).sum(['transit_status']).reset_index()
+    df_piv = df_small.pivot(index='radius_bins', columns=['period_bins', 'height_bins'], values='transit_status')
+    piv = df_piv.to_numpy()
+    #print(completeness_map)
+    #print(piv)
+    #print(piv.shape)
     piv = np.flip(piv, axis=0)/completeness_map
     adjusted_count = np.nansum(piv)
 

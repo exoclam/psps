@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import seaborn as sns
+from scipy import stats
 
 from psps.transit_class import Population, Star
 import psps.simulate_helpers as simulate_helpers
@@ -49,7 +50,7 @@ def plot_properties(teffs, ages):
     ax1.set_xlabel(r"$T_{eff}$ [K]")
     # plot vertical red line through median Teff
     ax1.plot([np.median(teffs), np.median(teffs)], 
-            [0,4000], color='r', alpha=0.3, linestyle='--', label=r'median $T_{eff}$')
+            [0,3000], color='r', alpha=0.3, linestyle='--', label=r'median $T_{eff}$')
     #ax1.set_xlim([4800, 7550])
     ax1.legend()
 
@@ -57,7 +58,7 @@ def plot_properties(teffs, ages):
     ax2.hist(ages, bins=50, alpha=0.7)
     # plot vertical red line through median age 
     ax2.plot([np.median(ages), np.median(ages)], 
-            [0,3600], color='r', alpha=0.3, linestyle='--', label='median age')
+            [0,1800], color='r', alpha=0.3, linestyle='--', label='median age')
     ax2.set_ylabel("count")
     ax2.set_xlabel("age [Gyr]")
     #ax2.set_xlim([0, 18])
@@ -207,7 +208,7 @@ def completeness(berger_kepler):
             berger_kepler_all['sn'] = sn
             berger_kepler_all['geom_transit_status'] = geom_transit_statuses
 
-                # need kepid to be str or tuple, else unhashable type when groupby.count()
+            # need kepid to be str or tuple, else unhashable type when groupby.count()
             berger_kepler_all['kepid'] = berger_kepler_all['kepid'].apply(str) 
             #print(berger_kepler_all[['planet_radii', 'periods', 'transit_status']])
             #print(berger_kepler_all.loc[berger_kepler_all['transit_status']==1][['planet_radii', 'periods', 'transit_status']])
@@ -319,7 +320,7 @@ def plot_host_vs_height(df_all, df_planets):
 
     return
 
-def plot_age_vs_height(df_all):
+def plot_age_vs_height_scatter(df_all):
     """
     Figure of scatter points, one per system, color-coded by age
     Y axis is Zmax. X axis is arbitrary. 
@@ -367,3 +368,307 @@ def plot_age_vs_height(df_all):
     #plt.show()
 
     return
+
+def plot_kepmag_vs_cdpp(new_df):
+
+    """
+    Plot Kepler magnitude vs CDPP (6 hr)
+
+    Input:
+    - new_df: pd.DataFrame with Kep mag and CDPP columns
+    """
+
+    ### test by visualizing
+    new_df_f = new_df.loc[(new_df['Teff'] <= 7500) & (new_df['Teff'] >= 6000)]
+    new_df_g = new_df.loc[(new_df['Teff'] <= 6000) & (new_df['Teff'] >= 5300)]
+    new_df_k = new_df.loc[(new_df['Teff'] <= 5300) & (new_df['Teff'] >= 3500)]
+    plt.scatter(new_df['Kepler'], new_df['cdpp'], s=10, alpha=0.2)
+    plt.scatter(new_df_f['Kepler'], new_df_f['cdpp'], s=10, c='#e1bb3e', alpha=0.5, label='F dwarfs')
+    plt.scatter(new_df_g['Kepler'], new_df_g['cdpp'], s=10, c='#e35436', alpha=0.5, label='G dwarfs')
+    plt.scatter(new_df_k['Kepler'], new_df_k['cdpp'], s=10, c='#891d1a', alpha=0.5, label='K dwarfs')
+    plt.xlabel(r'$m_{Kepler}$')
+    plt.ylabel('CDPP rms (6 hr) [ppm]')
+    plt.ylim([0, 1000])
+    plt.legend(bbox_to_anchor=(1., 1.05))
+    plt.tight_layout()
+    plt.savefig(path+'plots/trilegal/kepmag_vs_cdpp.png')
+    plt.show()
+
+    return
+
+def plot_kepmag_vs_cdpp_heatmap(new_df):
+
+    """
+    Plot Kepler magnitude vs CDPP (6 hr)
+
+    Input:
+    - new_df: pd.DataFrame with Kep mag and CDPP columns
+    """
+
+    bins2d = [np.linspace(8, 16, 20), np.linspace(0, 500, 20)]
+
+    def actual_plotting(df):
+
+        kepmags = df['Kepler']
+        cdpps = df['cdpp']
+        norm = 10
+        hist, xedges, yedges = np.histogram2d(kepmags, cdpps, bins=bins2d)
+        hist = hist.T
+        #with np.errstate(divide='ignore', invalid='ignore'):  # suppress division by zero warnings
+            #hist *= norm / hist.sum(axis=0, keepdims=True)
+            #hist *= norm / hist.sum(axis=1, keepdims=True)
+        plt.pcolormesh(xedges, yedges, hist, cmap='Blues')
+
+        plt.xlabel(r'$m_{Kepler}$')
+        plt.ylabel('CDPP rms (6 hr) [ppm]')
+        plt.xlim([8, 16])
+        plt.ylim([0, 200])
+        plt.legend(bbox_to_anchor=(1., 1.05))
+        plt.tight_layout()
+        #plt.savefig(path+'plots/trilegal/kepmag_vs_cdpp.png', format='png', bbox_inches='tight')
+        plt.show()
+
+    ### test by visualizing
+    new_df_f = new_df.loc[(new_df['Teff'] <= 7500) & (new_df['Teff'] >= 6000)]
+    new_df_g = new_df.loc[(new_df['Teff'] <= 6000) & (new_df['Teff'] >= 5300)]
+    new_df_k = new_df.loc[(new_df['Teff'] <= 5300) & (new_df['Teff'] >= 3500)]
+
+    actual_plotting(new_df)
+    actual_plotting(new_df_f)
+    actual_plotting(new_df_g)
+    #actual_plotting(new_df_k)
+
+    return
+
+def plot_kepmag_vs_cdpp_heatmap_berger(old_df):
+
+    """
+    Plot Kepler magnitude vs CDPP (6 hr)
+
+    Input:
+    - old_df: pd.DataFrame with kepmag and rrmscdpp06p0 columns
+    """
+
+    bins2d = [np.linspace(8, 16, 20), np.linspace(0, 500, 20)]
+    old_df = old_df.dropna(subset=['kepmag','rrmscdpp06p0'])
+
+    def actual_plotting(df):
+
+        kepmags = df['kepmag']
+        cdpps = df['rrmscdpp06p0']
+        norm = 10
+        hist, xedges, yedges = np.histogram2d(kepmags, cdpps, bins=bins2d)
+        hist = hist.T
+        plt.pcolormesh(xedges, yedges, hist, cmap='Greens')
+
+        plt.xlabel(r'$m_{Kepler}$')
+        plt.ylabel('CDPP rms (6 hr) [ppm]')
+        plt.xlim([8, 16])
+        plt.ylim([0, 500])
+        plt.legend(bbox_to_anchor=(1., 1.05))
+        plt.tight_layout()
+        #plt.savefig(path+'plots/trilegal/kepmag_vs_cdpp.png', format='png', bbox_inches='tight')
+        plt.show()
+
+    ### test by visualizing
+    old_df_f = old_df.loc[(old_df['iso_teff'] <= 7500) & (old_df['iso_teff'] >= 6000)]
+    old_df_g = old_df.loc[(old_df['iso_teff'] <= 6000) & (old_df['iso_teff'] >= 5300)]
+    old_df_k = old_df.loc[(old_df['iso_teff'] <= 5300) & (old_df['iso_teff'] >= 3500)]
+
+    actual_plotting(old_df)
+    actual_plotting(old_df_f)
+    actual_plotting(old_df_g)
+
+    return
+
+def plot_age_vs_height(new_df, label='TRI'):
+
+    """
+    Plot age vs height
+
+    Input:
+    - new_df: pd.DataFrame with age and height columns
+    - label: 'TRI' or 'B20'
+    """
+
+    bins2d = [np.linspace(0, 14, 20), np.logspace(2, 3, 20)]
+
+    def actual_plotting(df):
+
+        ages = df['age']
+        heights = df['height']
+        norm = 10
+        hist, xedges, yedges = np.histogram2d(ages, heights, bins=bins2d)
+        hist = hist.T
+        #with np.errstate(divide='ignore', invalid='ignore'):  # suppress division by zero warnings
+            #hist *= norm / hist.sum(axis=0, keepdims=True)
+            #hist *= norm / hist.sum(axis=1, keepdims=True)
+        if label=='TRI':
+            plt.pcolormesh(xedges, yedges, hist, cmap='Blues')
+            plt.xlabel('TRILEGAL age [Gyr]')
+            plt.ylabel('TRILEGAL height [pc]')
+        elif label=='B20':
+            plt.pcolormesh(xedges, yedges, hist, cmap='Greens')
+            plt.xlabel('B20 age [Gyr]')
+            plt.ylabel('B20 height [pc]')
+        plt.legend(bbox_to_anchor=(1., 1.05))
+        plt.tight_layout()
+        if label=='TRI':
+            plt.savefig(path+'plots/trilegal/age_vs_height.png', format='png', bbox_inches='tight')
+        elif label=='B20':
+            plt.savefig(path+'plots/age_vs_height.png', format='png', bbox_inches='tight')
+        plt.show()
+
+    ### test by visualizing
+    #new_df_f = new_df.loc[(new_df['Teff'] <= 7500) & (new_df['Teff'] >= 6000)]
+    #new_df_g = new_df.loc[(new_df['Teff'] <= 6000) & (new_df['Teff'] >= 5300)]
+    #new_df_k = new_df.loc[(new_df['Teff'] <= 5300) & (new_df['Teff'] >= 3500)]
+
+    actual_plotting(new_df)
+    #actual_plotting(new_df_f)
+    #actual_plotting(new_df_g)
+    #actual_plotting(new_df_k)
+
+    return
+
+""" 
+STATISTICS
+"""
+
+def rejection_sampling(data1, data2):
+    """
+    Args:
+        data1 (np.array): sub-sample
+        data2 (np.array): bigger population
+
+    Returns:
+        new_data1: sub-sample
+        new_data2: rejection-sampled population
+    """
+
+    if drawn=='age':
+        x = np.linspace(0.5, 13.5, 100)
+    elif drawn=='stellar_radius':
+        x = np.linspace(0.5, 5., 100)
+    elif drawn=='stellar_mass':
+        x = np.linspace(0.5, 2.5, 100)
+    elif drawn=='stellar_teff':
+        x = np.linspace(2000, 7500, 1000)
+    elif drawn=='stellar_feh':
+        x = np.linspace(-0.5, 0.5, 100)
+
+    # set constant at max height of sample distribution 
+    c_age = np.max(data1['age'])
+    c_radius = np.max(data1['stellar_radius'])
+    c_mass = np.max(data1['stellar_mass'])
+    c_teff = np.max(data1['stellar_teff'])
+    c_feh = np.max(data1['stellar_feh'])
+
+    drawn = 'age'
+    kernel = stats.gaussian_kde(data1[drawn])
+    y = np.reshape(kernel(x).T, x.shape)
+    print(y)
+    
+    # how to construct a second kde that minimally matches the shape of the first one? 
+
+    return new_data1, new_data2
+
+def matched_sampling(data1, data2):
+    """
+    Args:
+        data1 (np.array): template population, eg. B20
+        data2 (np.array): copycat population, eg. trilegal
+
+    Returns:
+        new_data2: re-sampled copycat population
+    """
+
+    #print(len(data1))
+    #print(len(data2))
+    # columns to match/group by on
+    cols_to_match = ['mag_bins', 'stellar_radius_bins', 'teff_bins', 'logg_bins', 'age_bins', 'height_bins']
+    #cols_to_match = ['stellar_radius_bins', 'cdpp_bins', 'age_bins']
+
+    ### create binned map across Teff, logg, and kepmag, per van Saders+19, https://iopscience.iop.org/article/10.3847/1538-4357/aafafe
+    #mass_bins = np.linspace(0, 3, 30)
+    logg_bins = np.linspace(3.0, 4.6, 5) 
+    teff_bins = np.linspace(5300, 7500, 50)
+    mag_bins = np.linspace(8, 16, 5)
+    age_bins = np.linspace(0, 8, 10)
+    stellar_radius_bins = np.linspace(1, 3.5, 5)
+    cdpp_bins = np.linspace(0, 100, 10)
+    height_bins = np.logspace(2,3,6)
+
+    data1['mag_bins'] = pd.cut(data1['kepmag'], bins=mag_bins, include_lowest=True)
+    data1['logg_bins'] = pd.cut(data1['iso_logg'], bins=logg_bins, include_lowest=True)
+    data1['teff_bins'] = pd.cut(data1['iso_teff'], bins=teff_bins, include_lowest=True)
+    data1['stellar_radius_bins'] = pd.cut(data1['iso_rad'], bins=stellar_radius_bins, include_lowest=True)
+    #data1['cdpp_bins'] = pd.cut(data1['rrmscdpp06p0'], bins=cdpp_bins, include_lowest=True)
+    data1['height_bins'] = pd.cut(data1['height'], bins=height_bins, include_lowest=True)
+    data1['age_bins'] = pd.cut(data1['age'], bins=age_bins, include_lowest=True)
+
+    data1_counts = data1.groupby(cols_to_match).count().reset_index()
+    data1_counts = data1_counts.pivot(index='mag_bins', columns=['stellar_radius_bins', 'teff_bins', 'age_bins', 'logg_bins','height_bins'], values='kepmag')
+    #print(data1_counts)
+
+    ### create binned map for TRILEGAL and begin drawing stars. 
+    # allocate each drawn star into a bin and divide map by B20 map. 
+    # as long as all bins <1, keep drawing stars with replacement.
+    data2['mag_bins'] = pd.cut(data2['Kepler'], bins=mag_bins, include_lowest=True)
+    data2['logg_bins'] = pd.cut(data2['logg'], bins=logg_bins, include_lowest=True)
+    data2['teff_bins'] = pd.cut(data2['Teff'], bins=teff_bins, include_lowest=True)
+    data2['stellar_radius_bins'] = pd.cut(data2['stellar_radius'], bins=stellar_radius_bins, include_lowest=True)
+    #data2['cdpp_bins'] = pd.cut(data2['cdpp'], bins=cdpp_bins, include_lowest=True)
+    data2['height_bins'] = pd.cut(data2['height'], bins=height_bins, include_lowest=True)
+    data2['age_bins'] = pd.cut(data2['age'], bins=age_bins, include_lowest=True)
+    #print(data2[['mag_bins','teff_bins','stellar_radius_bins']])
+    #print(data2)
+
+    """
+    # start a template of draws, with an initial set using sample() to make it go faster
+    sample = data2.sample(frac=100, replace=True)#.groupby(['mag_bins','logg_bins','teff_bins']).count()
+    sample_counts = sample.groupby(cols_to_match).count().reset_index()
+    sample_counts = sample_counts.pivot(index='logg_bins', columns=['mag_bins','teff_bins'], values='Teff')
+    print(sample_counts)
+
+    # divide maps and show only those less than 1
+    ratio = sample_counts/data1_counts
+    print(np.nansum(ratio[ratio < 1]))
+    """
+
+    data1_unstacked = data1_counts.unstack()
+    data1_unstacked = data1_unstacked.loc[data1_unstacked > 0].reset_index()
+    #print(data1_unstacked)
+    data1_unstacked.columns = ['stellar_radius_bins','teff_bins','age_bins','logg_bins','height_bins','mag_bins','thresh']
+    #print(data1_unstacked)
+
+    # Merge the DataFrames on the specified columns, using an inner join
+    valid_pool = pd.merge(data2, data1_unstacked, on=cols_to_match, how='inner')
+    #print(valid_pool)
+
+    # Group by and then sample
+    def sample_by_size(group):
+        n = group['thresh'].iloc[0]
+        return group.sample(n=n, replace = True)
+
+    new_data2 = valid_pool.groupby(cols_to_match, group_keys=False).apply(sample_by_size)
+
+    return new_data2
+
+
+def infer_stellar_radius(reference, mass, lum, teff):
+    """
+    Avoid Stefan-Boltzmann because it under-predicts radius.
+
+    Args:
+        reference (pd.DataFrame): reference DF
+        mass (pd.Series): stellar mass [solar masses]
+        lum (pd.Series): stellar luminosity [solar lum]
+        teff (pd.Series): effective temp [K]
+    """
+
+    mass_bins = np.linspace(0, 3, 100)
+    lum_bins = np.linspace(0, 1000, 100) 
+    teff_bins = np.linspace(4800, 7500, 100)
+
+    return radius

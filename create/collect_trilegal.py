@@ -62,19 +62,18 @@ def literal_eval_w_exceptions(x):
 """
 
 # operative parameters
-threshold = 5
-frac1 = 0.15
-frac2 = 0.45
+threshold = 11.
+frac1 = 0.01
+frac2 = 0.60
 
-name_thresh = 5
-name_f1 = 15
-name_f2 = 45
+name_thresh = 11
+name_f1 = 1
+name_f2 = 60
 name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 #name = 'monotonic_'+str(name_f1)+'_'+str(name_f2) 
-name = 'piecewise_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2) 
+#name = 'piecewise_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2) 
 
-sim = sorted(glob(path+'data/trilegal/' + name + '/' + name + '*'))#[:5]
-#sim = sorted(glob(path+'data/trilegal/' + name + '*'))#[:5]
+sim = sorted(glob(path+'data/trilegal2/' + name + '/' + name + '*'))#[11:]
 heights = []
 ages = []
 fs = []
@@ -86,7 +85,34 @@ transit_multiplicities_all = []
 geom_transit_multiplicities_all = []
 completeness_all = []
 
-period_grid = np.logspace(np.log10(2), np.log10(300), 10)
+height_adjusted_planet_occurrences_all = []
+
+cdpp1_mean = []
+cdpp1_std = []
+cdpp3_mean = []
+cdpp3_std = []
+cdpp5_mean = []
+cdpp5_std = []
+stellar_radius1_mean = []
+stellar_radius1_std = []
+stellar_radius3_mean = []
+stellar_radius3_std = []
+stellar_radius5_mean = []
+stellar_radius5_std = []
+sn1_mean = []
+sn1_std = []
+sn3_mean = []
+sn3_std = []
+sn5_mean = []
+sn5_std = []
+age1_mean = []
+age1_std = []
+age3_mean = []
+age3_std = []
+age5_mean = []
+age5_std = []
+
+period_grid = np.logspace(np.log10(2), np.log10(40), 10) # formerly up to 300 days
 radius_grid = np.linspace(1, 4, 10)
 
 height_bins = np.logspace(2, 3, 6) # ah, so the above are the midpoints of the actual bins they used, I guess
@@ -109,6 +135,9 @@ for i in tqdm(range(len(sim))):
     trilegal_kepler_all['mutual_incls'] = trilegal_kepler_all['mutual_incls'].apply(literal_eval_w_exceptions)
     trilegal_kepler_all['eccs'] = trilegal_kepler_all['eccs'].apply(literal_eval_w_exceptions)
     trilegal_kepler_all['omegas'] = trilegal_kepler_all['omegas'].apply(literal_eval_w_exceptions)
+
+    # remove cdpp=0
+    trilegal_kepler_all = trilegal_kepler_all.loc[trilegal_kepler_all['rrmscdpp06p0']>0]
 
     #trilegal_kepler_all = trilegal_kepler_all.loc[(trilegal_kepler_all['height'] <= 1000) & (trilegal_kepler_all['age'] <= 13.7)] 
     print("FINAL SAMPLE COUNT: ", len(trilegal_kepler_all))
@@ -139,11 +168,12 @@ for i in tqdm(range(len(sim))):
     piv_physicals = []
     piv_detecteds = []
 
+    height_adjusted_planet_occurrences = []
+
     #completeness_all = []
-    for k in range(30): 
+    for k in range(10): 
 
         #berger_kepler_planets_temp = berger_kepler_planets
-
         ### Simulate detections from these synthetic systems
         prob_detections, transit_statuses, sn, geom_transit_statuses = simulate_transit.calculate_transit_vectorized(trilegal_kepler_planets.periods, 
                                         trilegal_kepler_planets.stellar_radius, trilegal_kepler_planets.planet_radii,
@@ -167,9 +197,9 @@ for i in tqdm(range(len(sim))):
         
         ### Completeness
         # Calculate completeness map
-        #if (k==0) or (k==1) or (k==2) or (k==3) or (k==4):
         completeness_map, piv_physical, piv_detected = simulate_helpers.completeness(trilegal_kepler_planets, trilegal_kepler_transiters)
-        completeness_threshold = 0.001 # completeness threshold under which period/radius cell is not counted; 0.5% results in full recovery, but let's round up to 1%
+        completeness_threshold = 0.0025 # completeness threshold under which period/radius cell is not counted; 0.5% results in full recovery, but let's round up to 1%
+        #completeness_threshold = 0.0005
         completeness_map = completeness_map.mask(completeness_map < completeness_threshold) # assert that completeness fractions lower than 1% are statistically insignificant
         completeness_all.append(completeness_map)
         #print(piv_physical)
@@ -212,7 +242,11 @@ for i in tqdm(range(len(sim))):
         trilegal_kepler_transiters3 = trilegal_kepler_transiters.loc[(trilegal_kepler_transiters['height'] > np.logspace(2,3,6)[2]) & (trilegal_kepler_transiters['height'] <= np.logspace(2,3,6)[3])]
         trilegal_kepler_transiters4 = trilegal_kepler_transiters.loc[(trilegal_kepler_transiters['height'] > np.logspace(2,3,6)[3]) & (trilegal_kepler_transiters['height'] <= np.logspace(2,3,6)[4])]
         trilegal_kepler_transiters5 = trilegal_kepler_transiters.loc[(trilegal_kepler_transiters['height'] > np.logspace(2,3,6)[4]) & (trilegal_kepler_transiters['height'] <= 1000)]
-        
+        #print(trilegal_kepler_transiters1) # 70 (0.039)
+        #print(trilegal_kepler_transiters2) # 150 (0.038)
+        #print(trilegal_kepler_transiters5) # 31 (0.009)
+        #quit()
+
         #len_berger_kepler_transiters, _ = simulate_helpers.adjust_for_completeness2(berger_kepler_transiters, completeness_map_np, radius_grid, period_grid) #completeness_map_np vs completeness_map
         #print(np.sum(np.mean(physical_planet_occurrences, axis=0)))
         #print(100 * np.sum(len_berger_kepler_transiters/berger_kepler_counts))
@@ -225,6 +259,34 @@ for i in tqdm(range(len(sim))):
         #plt.show()
         #quit()
 
+        cdpp1_mean.append(np.mean(trilegal_kepler_transiters1['rrmscdpp06p0']))
+        cdpp1_std.append(np.std(trilegal_kepler_transiters1['rrmscdpp06p0']))
+        cdpp3_mean.append(np.mean(trilegal_kepler_transiters3['rrmscdpp06p0']))
+        cdpp3_std.append(np.std(trilegal_kepler_transiters3['rrmscdpp06p0']))
+        cdpp5_mean.append(np.mean(trilegal_kepler_transiters5['rrmscdpp06p0']))
+        cdpp5_std.append(np.std(trilegal_kepler_transiters5['rrmscdpp06p0']))
+
+        stellar_radius1_mean.append(np.mean(trilegal_kepler_transiters1['stellar_radius']))
+        stellar_radius1_std.append(np.std(trilegal_kepler_transiters1['stellar_radius']))
+        stellar_radius3_mean.append(np.mean(trilegal_kepler_transiters3['stellar_radius']))
+        stellar_radius3_std.append(np.std(trilegal_kepler_transiters3['stellar_radius']))
+        stellar_radius5_mean.append(np.mean(trilegal_kepler_transiters5['stellar_radius']))
+        stellar_radius5_std.append(np.std(trilegal_kepler_transiters5['stellar_radius']))
+
+        sn1_mean.append(np.mean(trilegal_kepler_transiters1['sn']))
+        sn1_std.append(np.std(trilegal_kepler_transiters1['sn']))
+        sn3_mean.append(np.mean(trilegal_kepler_transiters3['sn']))
+        sn3_std.append(np.std(trilegal_kepler_transiters3['sn']))
+        sn5_mean.append(np.mean(trilegal_kepler_transiters5['sn']))
+        sn5_std.append(np.std(trilegal_kepler_transiters5['sn']))
+
+        age1_mean.append(np.mean(trilegal_kepler_transiters1['age']))
+        age1_std.append(np.std(trilegal_kepler_transiters1['age']))
+        age3_mean.append(np.mean(trilegal_kepler_transiters3['age']))
+        age3_std.append(np.std(trilegal_kepler_transiters3['age']))
+        age5_mean.append(np.mean(trilegal_kepler_transiters5['age']))
+        age5_std.append(np.std(trilegal_kepler_transiters5['age']))
+
         #"""
         len_trilegal_kepler_transiters1, _ = simulate_helpers.adjust_for_completeness2(trilegal_kepler_transiters1, completeness_map, radius_grid, period_grid) #completeness_map_np vs completeness_map
         len_trilegal_kepler_transiters2, _ = simulate_helpers.adjust_for_completeness2(trilegal_kepler_transiters2, completeness_map, radius_grid, period_grid)
@@ -232,16 +294,122 @@ for i in tqdm(range(len(sim))):
         len_trilegal_kepler_transiters4, _ = simulate_helpers.adjust_for_completeness2(trilegal_kepler_transiters4, completeness_map, radius_grid, period_grid)
         len_trilegal_kepler_transiters5, _ = simulate_helpers.adjust_for_completeness2(trilegal_kepler_transiters5, completeness_map, radius_grid, period_grid)
         len_trilegal_kepler_transiters = np.array([len_trilegal_kepler_transiters1, len_trilegal_kepler_transiters2, len_trilegal_kepler_transiters3, len_trilegal_kepler_transiters4, len_trilegal_kepler_transiters5])
+        #len_trilegal_kepler_recovered, recovered_piv = simulate_helpers.adjust_for_completeness(trilegal_kepler_transiters, completeness_map, radius_grid, period_grid)
+        adjusted_planet_occurrence = np.array(len_trilegal_kepler_transiters/trilegal_kepler_counts)
 
-        len_trilegal_kepler_recovered, recovered_piv = simulate_helpers.adjust_for_completeness2(trilegal_kepler_transiters, completeness_map, radius_grid, period_grid)
- 
+        ### adjust by height bins too! 
+        height_adjusted_planet_occurrence = simulate_helpers.completeness_height(100 * adjusted_planet_occurrence, physical_planet_occurrence) 
+        adjusted_planet_occurrences_all.append(adjusted_planet_occurrence) 
+        height_adjusted_planet_occurrences_all.append(height_adjusted_planet_occurrence)
+
+        ### this is for testing why the later height bins have much smaller completeness
+        """
+        trilegal_kepler_planets1 = trilegal_kepler_planets.loc[(trilegal_kepler_planets['height'] > 100) & (trilegal_kepler_planets['height'] <= np.logspace(2,3,6)[1])]
+        trilegal_kepler_planets2 = trilegal_kepler_planets.loc[(trilegal_kepler_planets['height'] > np.logspace(2,3,6)[1]) & (trilegal_kepler_planets['height'] <= np.logspace(2,3,6)[2])]
+        trilegal_kepler_planets3 = trilegal_kepler_planets.loc[(trilegal_kepler_planets['height'] > np.logspace(2,3,6)[2]) & (trilegal_kepler_planets['height'] <= np.logspace(2,3,6)[3])]
+        trilegal_kepler_planets4 = trilegal_kepler_planets.loc[(trilegal_kepler_planets['height'] > np.logspace(2,3,6)[3]) & (trilegal_kepler_planets['height'] <= np.logspace(2,3,6)[4])]
+        trilegal_kepler_planets5 = trilegal_kepler_planets.loc[(trilegal_kepler_planets['height'] > np.logspace(2,3,6)[4]) & (trilegal_kepler_planets['height'] <= 1000)]
+        print(trilegal_kepler_planets1) # 1807
+        print(trilegal_kepler_planets2) # 3975
+        print(trilegal_kepler_planets5) # 3390
+
+        print(np.nanmedian(trilegal_kepler_planets1['rrmscdpp06p0']))
+        print(np.nanmedian(trilegal_kepler_planets2['rrmscdpp06p0']))
+        print(np.nanmedian(trilegal_kepler_planets3['rrmscdpp06p0']))
+        print(np.nanmedian(trilegal_kepler_planets4['rrmscdpp06p0']))
+        print(np.nanmedian(trilegal_kepler_planets5['rrmscdpp06p0']))
+
+        print(np.nanmedian(trilegal_kepler_transiters1['rrmscdpp06p0']))
+        print(np.nanmedian(trilegal_kepler_transiters2['rrmscdpp06p0']))
+        print(np.nanmedian(trilegal_kepler_transiters3['rrmscdpp06p0']))
+        print(np.nanmedian(trilegal_kepler_transiters4['rrmscdpp06p0']))
+        print(np.nanmedian(trilegal_kepler_transiters5['rrmscdpp06p0']))
+
+        completeness_map1, piv_physical1, piv_detected1 = simulate_helpers.completeness(trilegal_kepler_planets1, trilegal_kepler_transiters1)
+        completeness_map2, piv_physical2, piv_detected2 = simulate_helpers.completeness(trilegal_kepler_planets2, trilegal_kepler_transiters2)
+        completeness_map3, piv_physical3, piv_detected3 = simulate_helpers.completeness(trilegal_kepler_planets3, trilegal_kepler_transiters3)
+        completeness_map4, piv_physical4, piv_detected4 = simulate_helpers.completeness(trilegal_kepler_planets4, trilegal_kepler_transiters4)
+        completeness_map5, piv_physical5, piv_detected5 = simulate_helpers.completeness(trilegal_kepler_planets5, trilegal_kepler_transiters5)
+        completeness_threshold1 = 0.0005
+        completeness_threshold2 = 0.0005
+        completeness_threshold3 = 0.0005
+        completeness_threshold4 = 0.0001
+        completeness_threshold5 = 0.000001
+        completeness_map1 = completeness_map1.mask(completeness_map1 < completeness_threshold1) 
+        completeness_map2 = completeness_map2.mask(completeness_map2 < completeness_threshold2) 
+        completeness_map3 = completeness_map3.mask(completeness_map3 < completeness_threshold3) 
+        completeness_map4 = completeness_map4.mask(completeness_map4 < completeness_threshold4) 
+        completeness_map5 = completeness_map5.mask(completeness_map5 < completeness_threshold5) 
+
+        len_trilegal_kepler_transiters1, _ = simulate_helpers.adjust_for_completeness(trilegal_kepler_transiters1, completeness_map1, radius_grid, period_grid) #completeness_map_np vs completeness_map
+        len_trilegal_kepler_transiters2, _ = simulate_helpers.adjust_for_completeness(trilegal_kepler_transiters2, completeness_map2, radius_grid, period_grid)
+        len_trilegal_kepler_transiters3, _ = simulate_helpers.adjust_for_completeness(trilegal_kepler_transiters3, completeness_map3, radius_grid, period_grid)
+        len_trilegal_kepler_transiters4, _ = simulate_helpers.adjust_for_completeness(trilegal_kepler_transiters4, completeness_map4, radius_grid, period_grid)
+        len_trilegal_kepler_transiters5, _ = simulate_helpers.adjust_for_completeness(trilegal_kepler_transiters5, completeness_map5, radius_grid, period_grid)
+        len_trilegal_kepler_transiters = np.array([len_trilegal_kepler_transiters1, len_trilegal_kepler_transiters2, len_trilegal_kepler_transiters3, len_trilegal_kepler_transiters4, len_trilegal_kepler_transiters5])
         adjusted_planet_occurrence = len_trilegal_kepler_transiters/trilegal_kepler_counts
-        adjusted_planet_occurrences_all.append(adjusted_planet_occurrence)
+        print(100 * adjusted_planet_occurrence)
+        print(physical_planet_occurrence)
+        quit()
+        adjusted_planet_occurrences_all.append(adjusted_planet_occurrence) 
+        """
         #"""
+    
+    adjusted_planet_occurrences.append(adjusted_planet_occurrence)
+    #height_adjusted_detection = 100 * np.array(adjusted_planet_occurrences) / np.array(physical_planet_occurrences)
+    #height_adjusted_planet_occurrence = 100 * np.array(adjusted_planet_occurrences) / height_adjusted_detection
+    #height_adjusted_planet_occurrences.append(height_adjusted_planet_occurrence)
+
+# compare key sensitivity parameters with B20 across diagnostic bins, to see where the big differences are
+#"""
+print("cdpps")
+print(np.mean(cdpp1_mean), np.mean(cdpp1_std))
+print(np.mean(cdpp3_mean), np.mean(cdpp3_std))
+print(np.mean(cdpp5_mean), np.mean(cdpp5_std))
+#plt.hist(trilegal_kepler_transiters1['rrmscdpp06p0'], label='bin 1', alpha=0.5, density=True)
+#plt.hist(trilegal_kepler_transiters3['rrmscdpp06p0'], label='bin 3', alpha=0.5, density=True)
+#plt.hist(trilegal_kepler_transiters5['rrmscdpp06p0'], label='bin 5', alpha=0.5, density=True)
+#plt.xlabel('CDPP (6 hr) [ppm]')
+#plt.legend()
+#plt.show()
+
+print("stellar radius")
+print(np.mean(stellar_radius1_mean), np.mean(stellar_radius1_std))
+print(np.mean(stellar_radius3_mean), np.mean(stellar_radius3_std))
+print(np.mean(stellar_radius5_mean), np.mean(stellar_radius5_std))
+#plt.hist(trilegal_kepler_transiters1['stellar_radius'], label='bin 1', alpha=0.5, density=True)
+#plt.hist(trilegal_kepler_transiters3['stellar_radius'], label='bin 3', alpha=0.5, density=True)
+#plt.hist(trilegal_kepler_transiters5['stellar_radius'], label='bin 5', alpha=0.5, density=True)
+#plt.xlabel('stellar radius [Solar radius]')
+#plt.legend()
+#plt.show()
+
+print("s/n")
+print(np.mean(sn1_mean), np.mean(sn1_std))
+print(np.mean(sn3_mean), np.mean(sn3_std))
+print(np.mean(sn5_mean), np.mean(sn5_std))
+#plt.hist(trilegal_kepler_transiters1['sn'], label='bin 1', alpha=0.5, density=True)
+#plt.hist(trilegal_kepler_transiters3['sn'], label='bin 3', alpha=0.5, density=True)
+#plt.hist(trilegal_kepler_transiters5['sn'], label='bin 5', alpha=0.5, density=True)
+#plt.xlabel('s/n')
+#plt.legend()
+#plt.show()
+
+print("age")
+print(np.mean(age1_mean), np.mean(age1_std))
+print(np.mean(age3_mean), np.mean(age3_std))
+print(np.mean(age5_mean), np.mean(age5_std))
+#plt.hist(trilegal_kepler_transiters1['age'], label='bin 1', alpha=0.5, density=True)
+#plt.hist(trilegal_kepler_transiters3['age'], label='bin 3', alpha=0.5, density=True)
+#plt.hist(trilegal_kepler_transiters5['age'], label='bin 5', alpha=0.5, density=True)
+#plt.xlabel('age [Gyr]')
+#plt.legend()
+#plt.show()
+#"""
 
 # one-time creation of empirical completeness map, using the first detection of each of the 30 Populations and averaging them
-print("COMPLETENESS MAPS")
-print(completeness_all)
+#print("COMPLETENESS MAPS")
+#print(completeness_all)
 
 mean_completeness = np.nanmean(completeness_all, axis=0)
 std_completeness = np.nanstd(completeness_all, axis=0)
@@ -265,6 +433,20 @@ print("recovered planet occurrences, and yerr: ", mean_recovered_planet_occurren
 mean_detected_planet_occurrences = 100 * np.nanmean(detected_planet_occurrences_all, axis=0)
 yerr_detected = 100 * np.std(detected_planet_occurrences_all, axis=0)
 print("detected occurrence: ", mean_detected_planet_occurrences)
+
+### adjust for decreasing sensitivity with increasing galactic height
+"""
+print(100 * adjusted_planet_occurrences_all)
+print(physical_planet_occurrences)
+#print(np.array(adjusted_planet_occurrences_all).reshape((3,3,5)), np.array(physical_planet_occurrences).shape)
+height_adjusted_detection = 100 * np.array(adjusted_planet_occurrences_all).reshape((3,3,5)) / np.array(physical_planet_occurrences)
+height_adjusted_planet_occurrences_all = np.array(adjusted_planet_occurrences_all).reshape((3,3,5)) / height_adjusted_detection
+print(height_adjusted_planet_occurrences_all)
+"""
+#mean_recovered_planet_occurrences = np.nanmean(height_adjusted_planet_occurrences_all, axis=0)
+#yerr_recovered = np.std(height_adjusted_planet_occurrences_all, axis=0)
+#print(height_adjusted_planet_occurrences_all)
+#print("height-adjusted recovered planet occurrences, and yerr: ", mean_recovered_planet_occurrences, yerr_recovered)
 
 #plt.errorbar(np.array(height_bins[1:]), mean_detected_planet_occurrences, yerr_detected, fmt='o', label='detected')
 #height_bins_shifted = height_bins[1:] + np.array([15, 20, 25, 30, 35, 40])
@@ -320,8 +502,8 @@ def model(x, tau, occurrence):
 ### but first, fit a power law 
 def power_model(x, yerr, y=None):
 
-    tau = numpyro.sample("tau", dist.Uniform(-1., 0.))
-    occurrence = numpyro.sample("occurrence", dist.Uniform(0.01, 1.))
+    tau = numpyro.sample("tau", dist.Uniform(-1., 1.)) # U(-1, 0)
+    occurrence = numpyro.sample("occurrence", dist.Uniform(0.01, 1.)) # U(0.01, 1)
 
     dln = 0.0011
     scaleMax= 1000
@@ -466,8 +648,8 @@ y = np.where(x <= threshold, frac1, frac2)
 #y = b + m * x
 
 # piecewise model
-m = (frac2 - frac1)/(x[-1] - threshold)
-y = np.where(x < threshold, frac1, frac1 + m * (x-threshold))
+#m = (frac2 - frac1)/(x[-1] - threshold)
+#y = np.where(x < threshold, frac1, frac1 + m * (x-threshold))
 
 ax2.plot(x, y, color='powderblue')
 ax2.set_xlabel('cosmic age [Gyr]')
@@ -483,7 +665,7 @@ plt.savefig(path+'plots/trilegal/trilegal_model_vs_zink_'+name+'_empirical_compl
 #plt.ylabel('planets per 100 stars')
 #plt.legend()
 #plt.tight_layout()
-#plt.savefig(path+'plots/'+name)
+#plt.savefig(path+'plots/trilegal/'+name)
 plt.show()
 
 """
@@ -492,12 +674,14 @@ step functions
 model 1, (12, 20, 80): 0.30, or (12, 25, 80): 0.36, or (12, 25, 75): 0.35, or (12, 25, 70): 0.34, or (12, 25, 50): 0.30
 model 2, (11.5, 10, 80): 0.31, or (11.5, 15, 70): 0.31 (bad both ways), or (11.5, 15, 65): 0.30 (nope, overshot it), or (11.5, 20, 65): 0.33
 model 3, (11, 15, 60): 0.30, or (11, 10, 65): 0.32 
-model 4, (9.5, 5, 45): 0.30
+model 4, (9.5, 5, 45): 0.30, or (9.5, 15, 75): 0.34
 model 5, (7.5, 1, 40): 0.33
 model 6, (5.5, 1, 35): 0.34, or (5.5, 1, 30): 0.29
 
 piecewise functions
 model 1, (7.5, 1, 40): 0.33, -0.36 +/- 0.19, normalization a hair high but slope is good
 model 2, (7, 10, 55): 0.32, -0.37 +/- 0.17, the most perfect model I have ever seen
-model 3 (5, 10, 45): 
+model 3 (5, 15, 45): 0.33, -0.31 +/- 0.17, good fit
+
+stars: ~66000
 """
