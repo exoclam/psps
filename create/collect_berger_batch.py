@@ -113,16 +113,16 @@ piecewise (3.5, 1, 60): f=too small; (3.5, 1, 60): f=0.35; (3.5, 1, 70): f=0.33 
 """
 
 # operative parameters
-threshold = 3.5
-frac1 = 0.01
-frac2 = 0.40
+threshold = 5.5
+frac1 = 0.05
+frac2 = 0.60
 
-name_thresh = 35
-name_f1 = 1
-name_f2 = 40
+name_thresh = 55
+name_f1 = 5
+name_f2 = 60
 name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 #name = 'monotonic_'+str(name_f1)+'_'+str(name_f2) # f=
-#name = 'piecewise_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2) # f=0.31, f=0.30, f=
+name = 'piecewise_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2) # f=0.31, f=0.30, f=
 
 # new, one-time completeness map
 #completeness_map = pd.read_csv(path+'data/completeness_map.csv') 
@@ -132,7 +132,7 @@ name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 
 #"""
 ### diagnostic plotting age vs height
-sim = sorted(glob(path+'data/berger_gala/' + name + '/' + name + '*'))
+sim = sorted(glob(path+'data/berger_gala2/' + name + '/' + name + '*'))
 
 heights = []
 ages = []
@@ -145,27 +145,28 @@ transit_multiplicities_all = []
 geom_transit_multiplicities_all = []
 completeness_all = []
 
-period_grid = np.logspace(np.log10(2), np.log10(300), 10)
+period_grid = np.logspace(np.log10(1), np.log10(40), 10)
 radius_grid = np.linspace(1, 4, 10)
 #height_bins = np.array([0., 150, 250, 400, 650, 3000]) 
 height_bins = np.array([0., 120, 200, 300, 500, 800, 1500]) # the actual Zink Fig 12 height bins
 height_bins = np.logspace(2, 3, 6) # ah, so the above are the midpoints of the actual bins they used, I guess
 height_bin_midpoints = 0.5 * (np.logspace(2,3,6)[1:] + np.logspace(2,3,6)[:-1])
 for i in tqdm(range(len(sim))):
-    print(sim[i])
+
     try:
         berger_kepler_all = pd.read_csv(sim[i], sep=',') #, on_bad_lines='skip'
     except:
         continue
     #berger_kepler_all = pd.read_csv(path+'data/berger_gala/'+name+'.csv')
-
+    
     num_hosts = berger_kepler_all.loc[berger_kepler_all['num_planets']>0]
     #print("f: ", len(num_hosts)/len(berger_kepler_all))
     f = len(num_hosts)/len(berger_kepler_all)
     fs.append(f)
 
     berger_kepler_all = berger_kepler_all.dropna(subset=['height'])
-    berger_kepler_all['height'] = berger_kepler_all['height'] * 1000 # to pc
+
+    berger_kepler_all['height'] = berger_kepler_all['height']
     berger_kepler_all['periods'] = berger_kepler_all['periods'].apply(literal_eval_w_exceptions)
     berger_kepler_all['planet_radii'] = berger_kepler_all['planet_radii'].apply(literal_eval_w_exceptions)
     berger_kepler_all['incls'] = berger_kepler_all['incls'].apply(literal_eval_w_exceptions)
@@ -221,7 +222,7 @@ for i in tqdm(range(len(sim))):
     piv_detecteds = []
 
     #completeness_all = []
-    for k in range(10): 
+    for k in range(30): 
 
         #berger_kepler_planets_temp = berger_kepler_planets
 
@@ -272,7 +273,7 @@ for i in tqdm(range(len(sim))):
         # Calculate completeness map
         #if (k==0) or (k==1) or (k==2) or (k==3) or (k==4):
         completeness_map, piv_physical, piv_detected = simulate_helpers.completeness(berger_kepler_planets, berger_kepler_transiters)
-        completeness_threshold = 0.0025 # completeness threshold under which period/radius cell is not counted; 0.5% results in full recovery, but let's round up to 1%
+        completeness_threshold = 0.003 # completeness threshold under which period/radius cell is not counted; 0.5% results in full recovery, but let's round up to 1%
         completeness_map = completeness_map.mask(completeness_map < completeness_threshold) # assert that completeness fractions lower than 1% are statistically insignificant
         completeness_all.append(completeness_map)
         #print(piv_physical)
@@ -458,8 +459,8 @@ for i in tqdm(range(len(sim))):
         #"""
 
 # one-time creation of empirical completeness map, using the first detection of each of the 30 Populations and averaging them
-print("COMPLETENESS MAPS")
-print(completeness_all)
+#print("COMPLETENESS MAPS")
+#print(completeness_all)
 
 mean_completeness = np.nanmean(completeness_all, axis=0)
 std_completeness = np.nanstd(completeness_all, axis=0)
@@ -538,7 +539,7 @@ def model(x, tau, occurrence):
 ### but first, fit a power law 
 def power_model(x, yerr, y=None):
 
-    tau = numpyro.sample("tau", dist.Uniform(-1., 0.))
+    tau = numpyro.sample("tau", dist.Uniform(-1., 1.))
     occurrence = numpyro.sample("occurrence", dist.Uniform(0.01, 1.))
 
     dln = 0.0011
@@ -574,9 +575,9 @@ sampler = infer.MCMC(
     infer.NUTS(power_model, dense_mass=True,
         regularize_mass_matrix=False,
         init_strategy=numpyro.infer.init_to_value(values=opt_params)), 
-    num_warmup=2000,
-    num_samples=3000,
-    num_chains=4,
+    num_warmup=10000,
+    num_samples=10000,
+    num_chains=8,
     progress_bar=True,
 )
 
@@ -625,6 +626,29 @@ ax1.fill_between(z_max, yield_max, yield_min, color='red', alpha=0.3, label='Zin
 
 # zink+ 2023 data
 ax1.errorbar(x=height_bin_midpoints, y=zink_kepler['occurrence'], yerr=(zink_kepler['occurrence_err1'], zink_kepler['occurrence_err2']), fmt='o', color='red', alpha=0.5, capsize=3, elinewidth=1, markeredgewidth=1, label='Zink+ 2023 Kepler data')
+
+"""
+### get combined SE and SN tau and occurrence for Zink23
+print(yerr_recovered, mean_recovered_planet_occurrences)
+print(0.5 * (np.array(zink_kepler['occurrence_err1']) + np.array(zink_kepler['occurrence_err2'])), np.array(zink_kepler['occurrence']))
+opt_params = run_optim(jax.random.PRNGKey(5), height_bin_midpoints, 0.5 * (np.array(zink_kepler['occurrence_err1']) + np.array(zink_kepler['occurrence_err2'])), y=np.array(zink_kepler['occurrence']))
+#print("opt params: ", opt_params)
+
+# sample posteriors for best-fit model to simulated data
+sampler = infer.MCMC(
+    infer.NUTS(power_model, dense_mass=True,
+        regularize_mass_matrix=False,
+        init_strategy=numpyro.infer.init_to_value(values=opt_params)), 
+    num_warmup=10000,
+    num_samples=10000,
+    num_chains=8,
+    progress_bar=True,
+)
+sampler.run(jax.random.PRNGKey(0), height_bin_midpoints, 0.5 * (np.array(zink_kepler['occurrence_err1']) + np.array(zink_kepler['occurrence_err2'])), y=np.array(zink_kepler['occurrence']))
+inf_data = az.from_numpyro(sampler)
+print(az.summary(inf_data))
+quit()
+"""
 
 # our simulated data
 #height_bins_shifted1 = height_bins[1:] + np.array([7, 15, 18, 32, 48])
@@ -684,8 +708,8 @@ y = np.where(x <= threshold, frac1, frac2)
 #y = b + m * x
 
 # piecewise model
-#m = (frac2 - frac1)/(x[-1] - threshold)
-#y = np.where(x < threshold, frac1, frac1 + m * (x-threshold))
+m = (frac2 - frac1)/(x[-1] - threshold)
+y = np.where(x < threshold, frac1, frac1 + m * (x-threshold))
 
 ax2.plot(x, y, color='powderblue')
 ax2.set_xlabel('cosmic age [Gyr]')
@@ -693,7 +717,7 @@ ax2.set_ylabel('planet host fraction')
 ax2.set_ylim([0,1])
 
 fig.tight_layout()
-#plt.savefig(path+'plots/model_vs_zink_'+name+'_empirical_completeness.png', format='png', bbox_inches='tight')
+plt.savefig(path+'plots/model_vs_zink_'+name+'.png', format='png', bbox_inches='tight')
 
 #plt.errorbar(x=zink_kepler['scale_height'], y=zink_kepler['occurrence'], yerr=(zink_kepler['occurrence_err1'], zink_kepler['occurrence_err2']), fmt='o', capsize=3, elinewidth=1, markeredgewidth=1, label='Zink+ 2023 Kepler data')
 #plt.scatter(x=zink_kepler['scale_height'], y=physical_planet_occurrence, c='red', label='model')

@@ -62,16 +62,16 @@ def literal_eval_w_exceptions(x):
 """
 
 # operative parameters
-threshold = 11.
-frac1 = 0.01
-frac2 = 0.60
+threshold = 11
+frac1 = 0.20
+frac2 = 0.90
 
 name_thresh = 11
-name_f1 = 1
-name_f2 = 60
+name_f1 = 20
+name_f2 = 90
 name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 #name = 'monotonic_'+str(name_f1)+'_'+str(name_f2) 
-#name = 'piecewise_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2) 
+name = 'piecewise_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2) 
 
 sim = sorted(glob(path+'data/trilegal2/' + name + '/' + name + '*'))#[11:]
 heights = []
@@ -111,6 +111,9 @@ age3_mean = []
 age3_std = []
 age5_mean = []
 age5_std = []
+len1 = []
+len3 = []
+len5 = []
 
 period_grid = np.logspace(np.log10(2), np.log10(40), 10) # formerly up to 300 days
 radius_grid = np.linspace(1, 4, 10)
@@ -287,6 +290,10 @@ for i in tqdm(range(len(sim))):
         age5_mean.append(np.mean(trilegal_kepler_transiters5['age']))
         age5_std.append(np.std(trilegal_kepler_transiters5['age']))
 
+        len1.append(len(trilegal_kepler_transiters1))
+        len3.append(len(trilegal_kepler_transiters3))
+        len5.append(len(trilegal_kepler_transiters5))
+
         #"""
         len_trilegal_kepler_transiters1, _ = simulate_helpers.adjust_for_completeness2(trilegal_kepler_transiters1, completeness_map, radius_grid, period_grid) #completeness_map_np vs completeness_map
         len_trilegal_kepler_transiters2, _ = simulate_helpers.adjust_for_completeness2(trilegal_kepler_transiters2, completeness_map, radius_grid, period_grid)
@@ -405,6 +412,11 @@ print(np.mean(age5_mean), np.mean(age5_std))
 #plt.xlabel('age [Gyr]')
 #plt.legend()
 #plt.show()
+
+print("bin sizes")
+print(np.mean(len1), np.std(len1))
+print(np.mean(len3), np.std(len3))
+print(np.mean(len5), np.std(len5))
 #"""
 
 # one-time creation of empirical completeness map, using the first detection of each of the 30 Populations and averaging them
@@ -648,8 +660,8 @@ y = np.where(x <= threshold, frac1, frac2)
 #y = b + m * x
 
 # piecewise model
-#m = (frac2 - frac1)/(x[-1] - threshold)
-#y = np.where(x < threshold, frac1, frac1 + m * (x-threshold))
+m = (frac2 - frac1)/(x[-1] - threshold)
+y = np.where(x < threshold, frac1, frac1 + m * (x-threshold))
 
 ax2.plot(x, y, color='powderblue')
 ax2.set_xlabel('cosmic age [Gyr]')

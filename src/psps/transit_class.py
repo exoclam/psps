@@ -301,6 +301,30 @@ class Population:
         quit()
         """
         return host_frac
+
+    def galactic_occurrence_intact(self, threshold, frac1, frac2):
+        """
+        Calculate the probability of system having planets, based on its age and three free parameters
+        
+        Input:
+        - threshold: age beyond which probability of hosting a planet is frac2, versus frac1, in Gyr [float]
+        - frac1: planet host fraction among systems younger than threshold [float]
+        - frac2: planet host fraction among systems older than threshold [float]
+
+        Output:
+        - intact_fracs: jnp.array of fraction of planetary systems that are dynamically cool [float]
+
+        """
+
+        ages = self.ages
+
+        # convert stellar ages to cosmic ages...but first make sure none are older than Universe
+        ages = ages.at[ages > 13.7].set(13.7)
+        cosmic_ages = 13.7 - ages
+
+        intact_fracs = jnp.where(cosmic_ages <= threshold, frac1, frac2)
+
+        return intact_fracs
         
     
 class Star:
@@ -314,10 +338,11 @@ class Star:
     - stellar_radius: drawn stellar radius, in Solar radii
     - stellar_mass: drawn stellar mass, in Solar masses
     - rrmscdpp06p0: 6-hr-window CDPP noise [ppm]
-    - frac_host: calculated fraction of planet hosts 
     - height: galactic scale height [pc]
     - alpha_se: power law exponent for Super-Earth radii
     - alpha_sn: power law exponent for Sub-Neptune radii
+    - frac_host: calculated fraction of planet hosts, defaults to Zhu+20 but can be tunable 
+    - prob_intact: probability of being dynamically cool; defaults to Lam+24 probability, but can be tunable
     - kepid: default to None, unless user provides Kepler IDs
 
     Output:
@@ -326,7 +351,7 @@ class Star:
     """
 
     def __init__(
-        self, age, stellar_radius, stellar_mass, rrmscdpp06p0, frac_host, height, alpha_se, alpha_sn, kepid=None, **kwargs 
+        self, age, stellar_radius, stellar_mass, rrmscdpp06p0, height, alpha_se, alpha_sn, frac_host, prob_intact, kepid=None, **kwargs 
     ):
 
         #self.kepid = kepid
@@ -346,7 +371,7 @@ class Star:
 
         # prescription for planet-making
         #prob_intact = 0.18 + 0.1 * jax.random.truncated_normal(key=subkey, lower=0, upper=1) # from Lam & Ballard 2024; out of planet hosts
-        prob_intact = scipy.stats.truncnorm.rvs(0, 1, loc=0.18, scale=0.1)  # np vs JAX bc of random key issues
+        #self.prob_intact = scipy.stats.truncnorm.rvs(0, 1, loc=0.18, scale=0.1)  # np vs JAX bc of random key issues
         self.prob_intact = prob_intact
 
         p = simulate_helpers.assign_status(self.frac_host, self.prob_intact)

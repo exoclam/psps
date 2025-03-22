@@ -757,11 +757,11 @@ def kepmag_to_cdpp_vectorized(data1, data2):
     """
 
     #cols_to_match = ['mag_bins', 'teff_bins', 'age_bins']
-    cols_to_match = ['mag_bins', 'stellar_radius_bins', 'teff_bins', 'logg_bins', 'age_bins', 'height_bins']
+    cols_to_match = ['mag_bins', 'teff_bins', 'logg_bins']
     logg_bins = np.linspace(3.0, 4.6, 5) 
     teff_bins = np.linspace(5300, 7500, 50)
     mag_bins = np.linspace(8, 16, 5)
-    age_bins = np.linspace(0, 8, 10)
+    age_bins = np.linspace(0, 14, 10) # (0, 14, 10) or (0, 8, 10)
     stellar_radius_bins = np.linspace(1, 3.5, 5)
     cdpp_bins = np.linspace(0, 100, 10)
     height_bins = np.logspace(2,3,6)
@@ -770,10 +770,10 @@ def kepmag_to_cdpp_vectorized(data1, data2):
     data1['mag_bins'] = pd.cut(data1['kepmag'], bins=mag_bins, include_lowest=True)
     data1['logg_bins'] = pd.cut(data1['iso_logg'], bins=logg_bins, include_lowest=True)
     data1['teff_bins'] = pd.cut(data1['iso_teff'], bins=teff_bins, include_lowest=True)
-    data1['stellar_radius_bins'] = pd.cut(data1['iso_rad'], bins=stellar_radius_bins, include_lowest=True)
+    #data1['stellar_radius_bins'] = pd.cut(data1['iso_rad'], bins=stellar_radius_bins, include_lowest=True)
     #data1['cdpp_bins'] = pd.cut(data1['rrmscdpp06p0'], bins=cdpp_bins, include_lowest=True)
-    data1['height_bins'] = pd.cut(data1['height'], bins=height_bins, include_lowest=True)
-    data1['age_bins'] = pd.cut(data1['age'], bins=age_bins, include_lowest=True)
+    #data1['height_bins'] = pd.cut(data1['height'], bins=height_bins, include_lowest=True)
+    #data1['age_bins'] = pd.cut(data1['age'], bins=age_bins, include_lowest=True)
 
     data1_cdpp_mean = data1.groupby(cols_to_match)['rrmscdpp06p0'].mean().reset_index()
     data1_cdpp_mean = data1_cdpp_mean.pivot(index='mag_bins', columns=cols_to_match[1:])
@@ -783,14 +783,14 @@ def kepmag_to_cdpp_vectorized(data1, data2):
 
     # unstack pivot tables
     data1_unstacked_mean = data1_cdpp_mean.unstack().reset_index()
-    data1_unstacked_mean = data1_unstacked_mean[['mag_bins', 'stellar_radius_bins', 'teff_bins', 'logg_bins', 'age_bins', 'height_bins',0]]
-    data1_unstacked_mean.columns = ['mag_bins', 'stellar_radius_bins', 'teff_bins', 'logg_bins', 'age_bins', 'height_bins','cdpp_mean']
+    data1_unstacked_mean = data1_unstacked_mean[['mag_bins', 'teff_bins', 'logg_bins', 0]]
+    data1_unstacked_mean.columns = ['mag_bins', 'teff_bins', 'logg_bins','cdpp_mean']
     data1_unstacked_mean.dropna(subset=['cdpp_mean'], inplace=True)
     #print(data1_unstacked_mean)
 
     data1_unstacked_std = data1_cdpp_std.unstack().reset_index()
-    data1_unstacked_std = data1_unstacked_std[['mag_bins', 'stellar_radius_bins', 'teff_bins', 'logg_bins', 'age_bins', 'height_bins',0]]
-    data1_unstacked_std.columns = ['mag_bins', 'stellar_radius_bins', 'teff_bins', 'logg_bins', 'age_bins', 'height_bins','cdpp_std']
+    data1_unstacked_std = data1_unstacked_std[['mag_bins', 'teff_bins', 'logg_bins', 0]]
+    data1_unstacked_std.columns = ['mag_bins', 'teff_bins', 'logg_bins','cdpp_std']
     data1_unstacked_std.dropna(subset=['cdpp_std'], inplace=True)
     #print(data1_unstacked_std)
 
@@ -798,10 +798,10 @@ def kepmag_to_cdpp_vectorized(data1, data2):
     data2['mag_bins'] = pd.cut(data2['Kepler'], bins=mag_bins, include_lowest=True)
     data2['logg_bins'] = pd.cut(data2['logg'], bins=logg_bins, include_lowest=True)
     data2['teff_bins'] = pd.cut(data2['Teff'], bins=teff_bins, include_lowest=True)
-    data2['stellar_radius_bins'] = pd.cut(data2['stellar_radius'], bins=stellar_radius_bins, include_lowest=True)
+    #data2['stellar_radius_bins'] = pd.cut(data2['stellar_radius'], bins=stellar_radius_bins, include_lowest=True)
     #data2['cdpp_bins'] = pd.cut(data2['cdpp'], bins=cdpp_bins, include_lowest=True)
-    data2['height_bins'] = pd.cut(data2['height'], bins=height_bins, include_lowest=True)
-    data2['age_bins'] = pd.cut(data2['age'], bins=age_bins, include_lowest=True)
+    #data2['height_bins'] = pd.cut(data2['height'], bins=height_bins, include_lowest=True)
+    #data2['age_bins'] = pd.cut(data2['age'], bins=age_bins, include_lowest=True)
     #print(data2)
 
     # merge the DataFrames on the multiple columns
@@ -1005,6 +1005,8 @@ def draw_asymmetrically(df, mode_name, err1_name, err2_name, drawn):
         x = np.linspace(0, 5000, 1000)
     elif drawn=='planet_radius':
         x = np.linspace(0.5, 10, 100)
+    elif drawn=='Teff_drawn':
+        x = np.linspace(3400, 7000, 1000)
 
     else: 
         print("Please create a column that is either age, gyro_age, stellar_radius, stellar_mass, distance, planet_radius, stellar_feh, or stellar_teff!")
@@ -1048,7 +1050,7 @@ def draw_asymmetrically(df, mode_name, err1_name, err2_name, drawn):
                 print("EXCEPTION: ", i, pdf, mode, err1, err2)
                 print(e)
                 break
-        print(mode, err1, err2, draw)
+        #print(mode, err1, err2, draw)
         draws[i] = draw
 
     #print(len(df), len(draws), len(uniques))

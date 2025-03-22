@@ -50,7 +50,7 @@ def plot_properties(teffs, ages):
     ax1.set_xlabel(r"$T_{eff}$ [K]")
     # plot vertical red line through median Teff
     ax1.plot([np.median(teffs), np.median(teffs)], 
-            [0,3000], color='r', alpha=0.3, linestyle='--', label=r'median $T_{eff}$')
+            [0,2200], color='r', alpha=0.3, linestyle='--', label=r'median $T_{eff}$')
     #ax1.set_xlim([4800, 7550])
     ax1.legend()
 
@@ -58,7 +58,7 @@ def plot_properties(teffs, ages):
     ax2.hist(ages, bins=50, alpha=0.7)
     # plot vertical red line through median age 
     ax2.plot([np.median(ages), np.median(ages)], 
-            [0,1800], color='r', alpha=0.3, linestyle='--', label='median age')
+            [0,1200], color='r', alpha=0.3, linestyle='--', label='median age')
     ax2.set_ylabel("count")
     ax2.set_xlabel("age [Gyr]")
     #ax2.set_xlim([0, 18])
@@ -256,8 +256,8 @@ def plot_completeness(mean_completeness_map, std_completeness_map, radius_grid, 
     ax1.set_xticks(ax1.get_xticks()[::2]) # sample every other tick, for cleanness
     ax1.set_yticks(ax1.get_yticks()[::2]) # sample every other tick, for cleanness
     ax1.invert_yaxis()
-    plt.xlabel('period [days]')
-    plt.ylabel('radius [$R_{\oplus}$]')
+    plt.xlabel('$P_p$ [days]')
+    plt.ylabel('$R_p$ [$R_{\oplus}$]')
     #plt.xticks(ticks=period_grid)
     #plt.yticks(ticks=radius_grid)
     f.tight_layout(rect=[0, 0.03, 1, 0.95])
@@ -491,7 +491,7 @@ def plot_age_vs_height(new_df, label='TRI'):
     - label: 'TRI' or 'B20'
     """
 
-    bins2d = [np.linspace(0, 14, 20), np.logspace(2, 3, 20)]
+    bins2d = [np.linspace(0, 8, 20), np.logspace(2, 3, 20)]
 
     def actual_plotting(df):
 
@@ -672,3 +672,4 @@ def infer_stellar_radius(reference, mass, lum, teff):
     teff_bins = np.linspace(4800, 7500, 100)
 
     return radius
+    
