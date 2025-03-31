@@ -51,6 +51,7 @@ berger_kepler = pd.read_csv(path+'data/berger_kepler_stellar_fgk.csv') # crossma
 
 # Berger+ 2020 sample has lots of stellar params we need, but no source_id
 berger = Table.read(path+'data/berger_kepler_stellar_fgk.csv')
+
 # Bedell cross-match has the Gaia DR3 source_id we need to calculate Zmax with Gala
 megan = Table.read(path+'data/kepler_dr3_good.fits')
 
@@ -58,26 +59,50 @@ megan = Table.read(path+'data/kepler_dr3_good.fits')
 merged = join(berger, megan, keys='kepid')
 merged.rename_column('parallax_2', 'parallax')
 berger_kepler = berger_kepler.loc[berger_kepler['kepid'].isin(merged['kepid'])]
+
+z_maxes = simulate_helpers.gala_galactic_heights(merged, output=False)
+berger_kepler['height'] = 1000 * np.array(z_maxes) # kpc
+#berger_kepler.to_csv(path+'data/berger_kepler_bedell_gala.csv', index=False)
+#quit()
 """
 
-# actually, I just ran gala once and that's all I needed
-berger_kepler = pd.read_csv(path+'data/berger_kepler_bedell_gala.csv') # now with gala heights!
+### actually, I just ran gala once and that's all I needed
+#berger_kepler = pd.read_csv(path+'data/berger_kepler_bedell_gala.csv') # now with gala heights!
+berger_kepler = pd.read_csv(path+'data/berger_kepler_bedell_gala.csv') # crossmatched with Gaia via Bedell
+print(berger_kepler) # 54739
+"""
+plt.hist2d(berger_kepler['iso_teff'], berger_kepler['iso_logg'], bins=[20, 20])
+plt.xlabel(r'$T_{eff}$ [K]')
+plt.ylabel('logg')
+plt.gca().set_xlim(max(berger_kepler['iso_teff']), min(berger_kepler['iso_teff']))
+#plt.savefig(path+'plots/serenelli_logg_vs_teff.png')
+plt.show()
+quit()
+"""
 berger_kepler = berger_kepler.dropna(subset=['height'])
+print(berger_kepler) # 27294
+berger_kepler = berger_kepler.loc[berger_kepler['rrmscdpp06p0'] <= 1000]
+print(berger_kepler) # 27161
+
+fig = utils.plot_properties(berger_kepler, label='B20')
+plt.savefig(path+'plots/sample_properties_b20.pdf', format='pdf')
+plt.show()
+quit()
 
 # draw eccentricities using Van Eylen+ 2019
 model_flag = 'rayleigh'
 
 # planet formation history model parameters
-threshold = 5.5 # cosmic age in Gyr; 13.7 minus stellar age, then round
-frac1 = 0.05 # frac1 must be < frac2 if comparing cosmic ages
-frac2 = 0.55
+threshold = 11 # cosmic age in Gyr; 13.7 minus stellar age, then round
+frac1 = 0.33 # frac1 must be < frac2 if comparing cosmic ages
+frac2 = 0.33
 
-name_thresh = 55
-name_f1 = 5
-name_f2 = 55
+name_thresh = 11
+name_f1 = 33
+name_f2 = 33
 name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 #name = 'monotonic_'+str(name_f1)+'_'+str(name_f2)
-name = 'piecewise_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
+#name = 'piecewise_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 
 physical_planet_occurrences = []
 physical_planet_occurrences_precut = []
@@ -93,6 +118,7 @@ for j in tqdm(range(5)):
     berger_kepler_temp = simulate_helpers.draw_asymmetrically(berger_kepler, 'iso_rad', 'iso_rad_err1', 'iso_rad_err2', 'stellar_radius')
     berger_kepler_temp = simulate_helpers.draw_asymmetrically(berger_kepler_temp, 'iso_age', 'iso_age_err1', 'iso_age_err2', 'age')
     berger_kepler_temp = simulate_helpers.draw_asymmetrically(berger_kepler_temp, 'iso_mass', 'iso_mass_err1', 'iso_mass_err2', 'stellar_mass')
+    berger_kepler_temp = simulate_helpers.draw_asymmetrically(berger_kepler_temp, 'iso_teff', 'iso_teff_err1', 'iso_teff_err2', 'Teff')
 
     # enrich berger_kepler with z_maxes using gala
     #z_maxes = simulate_helpers.gala_galactic_heights(merged, output=False)
@@ -107,9 +133,9 @@ for j in tqdm(range(5)):
     ### create a Population object to hold information about the occurrence law governing that specific population
     # THIS IS WHERE YOU CHOOSE THE PLANET FORMATION HISTORY MODEL YOU WANT TO FORWARD MODEL
     pop = Population(berger_kepler_temp['age'], threshold, frac1, frac2)
-    #frac_hosts = pop.galactic_occurrence_step(threshold, frac1, frac2)
+    frac_hosts = pop.galactic_occurrence_step(threshold, frac1, frac2)
     #frac_hosts = pop.galactic_occurrence_monotonic(frac1, frac2)
-    frac_hosts = pop.galactic_occurrence_piecewise(frac1, frac2, threshold)
+    #frac_hosts = pop.galactic_occurrence_piecewise(frac1, frac2, threshold)
     intact_fracs = scipy.stats.truncnorm.rvs(0, 1, loc=0.18, scale=0.1, size=len(berger_kepler_temp))  # np vs JAX bc of random key issues
 
     alpha_se = np.random.normal(-1., 0.2)
@@ -118,12 +144,13 @@ for j in tqdm(range(5)):
     # create Star objects, with their planetary systems
     star_data = []
     for i in tqdm(range(len(berger_kepler_temp))): # 100
-        star = Star(berger_kepler_temp['age'][i], berger_kepler_temp['stellar_radius'][i], berger_kepler_temp['stellar_mass'][i], berger_kepler_temp['rrmscdpp06p0'][i], berger_kepler_temp['height'][i], alpha_se, alpha_sn, frac_hosts[i], intact_fracs[i], berger_kepler_temp['kepid'][i])
+        star = Star(berger_kepler_temp['age'][i], berger_kepler_temp['stellar_radius'][i], berger_kepler_temp['stellar_mass'][i], berger_kepler_temp['Teff'][i], berger_kepler_temp['rrmscdpp06p0'][i], berger_kepler_temp['height'][i], alpha_se, alpha_sn, frac_hosts[i], intact_fracs[i], berger_kepler_temp['kepid'][i])
         star_update = {
             'kepid': star.kepid,
             'age': star.age,
             'stellar_radius': star.stellar_radius,
             'stellar_mass': star.stellar_mass,
+            'Teff': star.Teff,
             'rrmscdpp06p0': star.rrmscdpp06p0,
             'frac_host': star.frac_host,
             'height': star.height,
@@ -145,6 +172,8 @@ for j in tqdm(range(5)):
     # convert back to DataFrame
     berger_kepler_all = pd.DataFrame.from_records(star_data)
 
+    utils.plot_properties(berger_kepler_all, label='B20')
+    quit()
     # do this thing where I make B20 look like TRI, instead of the other way around
     berger_kepler_all = berger_kepler_all.loc[berger_kepler_all['age'] <= 8.]
 
@@ -155,8 +184,8 @@ for j in tqdm(range(5)):
     #print(berger_kepler_all)
     f = len(berger_kepler_planets)/len(berger_kepler_all)
     print("f: ", f)
-    #quit()
-    berger_kepler_all.to_csv(path+'data/berger_gala2/'+name+'/'+name+'_'+str(j)+'.csv')
+
+    berger_kepler_all.to_csv(path+'data/berger_gala2/'+name+'/'+name+'_'+str(j)+'.csv') # berger_gala2 is stable version; berger_gala3 is with cooler teff cuts (4000-6500K); berger_gala4 is with 3700-7500 K
     #quit()
 
 

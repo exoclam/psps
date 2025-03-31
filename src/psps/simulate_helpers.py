@@ -759,11 +759,11 @@ def kepmag_to_cdpp_vectorized(data1, data2):
     #cols_to_match = ['mag_bins', 'teff_bins', 'age_bins']
     cols_to_match = ['mag_bins', 'teff_bins', 'logg_bins']
     logg_bins = np.linspace(3.0, 4.6, 5) 
-    teff_bins = np.linspace(5300, 7500, 50)
+    teff_bins = np.linspace(5300, 7500, 50) # (5300, 7500, 50) or (4000, 6500, 50)
     mag_bins = np.linspace(8, 16, 5)
     age_bins = np.linspace(0, 14, 10) # (0, 14, 10) or (0, 8, 10)
     stellar_radius_bins = np.linspace(1, 3.5, 5)
-    cdpp_bins = np.linspace(0, 100, 10)
+    cdpp_bins = np.linspace(0, 1000, 10) # (0, 100, 10)
     height_bins = np.logspace(2,3,6)
 
     # reference DataFrame
@@ -997,16 +997,14 @@ def draw_asymmetrically(df, mode_name, err1_name, err2_name, drawn):
         x = np.linspace(0.5, 5., 100)
     elif drawn=='stellar_mass':
         x = np.linspace(0.5, 2.5, 100)
-    elif drawn=='stellar_teff':
-        x = np.linspace(2000, 7500, 1000)
+    elif drawn=='Teff':
+        x = np.linspace(3700, 7500, 1000)
     elif drawn=='stellar_feh':
         x = np.linspace(-0.5, 0.5, 100)
     elif drawn=='distance':
         x = np.linspace(0, 5000, 1000)
     elif drawn=='planet_radius':
         x = np.linspace(0.5, 10, 100)
-    elif drawn=='Teff_drawn':
-        x = np.linspace(3400, 7000, 1000)
 
     else: 
         print("Please create a column that is either age, gyro_age, stellar_radius, stellar_mass, distance, planet_radius, stellar_feh, or stellar_teff!")

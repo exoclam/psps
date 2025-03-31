@@ -152,6 +152,8 @@ for i in tqdm(range(len(sim))):
     # RESULT PLOT STUFF
     trilegal_kepler_all['height_bins'] = pd.cut(trilegal_kepler_all['height'], bins=height_bins, include_lowest=True)
     trilegal_kepler_counts = np.array(trilegal_kepler_all.groupby(['height_bins']).count().reset_index()['index'])
+    utils.plot_age_vs_height(trilegal_kepler_all, label='TRI')
+    quit()
 
     # isolate planet hosts and bin them by galactic height
     trilegal_kepler_planets = trilegal_kepler_all.loc[trilegal_kepler_all['num_planets'] > 0]

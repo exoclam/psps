@@ -25,53 +25,78 @@ import psps.simulate_transit as simulate_transit
 
 path = '/Users/chrislam/Desktop/psps/' 
 
-def plot_properties(teffs, ages):
+def plot_properties(df, label='TRI'):
     """
     Make 2-subplot figure showing distributions of Teff and age. Tentatively Figs 1 & 2, in Paper III
 
     Input: 
-    - teffs: np array of effective temps [K]
-    - ages: np array of stellar ages [Gyr]
+    - df: pd.DataFrame with teff and age columns
+    - label: 'TRI' or 'B20'
+    #- teffs: np array of effective temps [K]
+    #- ages: np array of stellar ages [Gyr]
 
     """
 
+    if label=='TRI':
+        df_sub = df.loc[(df['Teff'] >= 5300) & (df['Teff'] <= 7500)] # what we actually use
+        df_sub = df_sub.loc[(df_sub['age'] >= 0) & (df_sub['age'] <= 8)]
+        teffs = df['Teff']
+        ages = df['age']
+        teffs_sub = df_sub['Teff']
+        ages_sub = df_sub['age']
+    elif label=='B20':
+        df_sub = df.loc[(df['iso_teff'] >= 5300) & (df['iso_teff'] <= 7500)] # what we actually use
+        df_sub = df_sub.loc[(df_sub['iso_age'] >= 0) & (df_sub['iso_age'] <= 8)]
+        teffs = df['iso_teff']
+        ages = df['iso_age']
+        teffs_sub = df_sub['iso_teff']
+        ages_sub = df_sub['iso_age']
+
     ### VISUALIZE TRILEGAL SAMPLE PROPERTIES, FOR PAPER FIGURE
-    teff_hist, teff_bin_edges = np.histogram(teffs, bins=50)
-    print("Teff peak: ", teff_bin_edges[np.argmax(teff_hist)])
-    age_hist, age_bin_edges = np.histogram(ages, bins=50)
-    print("age peak: ", age_bin_edges[np.argmax(age_hist)])
+    #teff_hist, teff_bin_edges = np.histogram(teffs, bins=50)
+    #print("Teff peak: ", teff_bin_edges[np.argmax(teff_hist)])
+    #age_hist, age_bin_edges = np.histogram(ages, bins=50)
+    #print("age peak: ", age_bin_edges[np.argmax(age_hist)])
 
     #fig, axes = plt.subplots(figsize=(7,5))
     fig, (ax1, ax2) = plt.subplots(nrows=2, figsize=(7, 5))
 
+    ### TEFF
     #ax1 = plt.subplot2grid((2,1), (0,0))
-    ax1.hist(teffs, bins=50, alpha=0.7)
+    ax1.hist(teffs, bins=20, alpha=0.3, label='background') # background
+    bins, edges, patches = ax1.hist(teffs_sub, bins=20, alpha=0.7, color='steelblue', label='this work') # what we actually use
     ax1.set_ylabel("count")
     ax1.set_xlabel(r"$T_{eff}$ [K]")
     # plot vertical red line through median Teff
-    ax1.plot([np.median(teffs), np.median(teffs)], 
-            [0,2200], color='r', alpha=0.3, linestyle='--', label=r'median $T_{eff}$')
-    #ax1.set_xlim([4800, 7550])
+
+    ax1.plot([np.median(teffs_sub), np.median(teffs_sub)], 
+            [0,np.max(bins)], color='r', alpha=0.3, linestyle='--', label=r'median $T_{eff}$')
+    ax1.set_xlim([3700, 7500])
     ax1.legend()
 
+    ### AGE
     #ax2 = plt.subplot2grid((2,1), (1,0))
-    ax2.hist(ages, bins=50, alpha=0.7)
+    ax2.hist(ages, bins=20, alpha=0.3, label='background') # background
+    bins, edges, patches = ax2.hist(ages_sub, bins=20, alpha=0.7, color='steelblue', label='this work') # what we actually use
     # plot vertical red line through median age 
-    ax2.plot([np.median(ages), np.median(ages)], 
-            [0,1200], color='r', alpha=0.3, linestyle='--', label='median age')
+    ax2.plot([np.median(ages_sub), np.median(ages_sub)], 
+            [0,np.max(bins)], color='r', alpha=0.3, linestyle='--', label='median age')
     ax2.set_ylabel("count")
     ax2.set_xlabel("age [Gyr]")
-    #ax2.set_xlim([0, 18])
+    ax2.set_xlim([0, 14])
     ax2.legend()
     fig.tight_layout()
 
-    print("median Teff: ", np.median(teffs))
-    print("median age: ", np.median(ages))
+    print("median Teff: ", np.median(teffs_sub))
+    print("median age: ", np.median(ages_sub))
 
-    plt.savefig(path+'plots/sample_properties_trilegal_heights_only.pdf', format='pdf')
-    plt.show()
+    #if label=='TRI':
+    #    plt.savefig(path+'plots/trilegal/sample_properties_trilegal.pdf', format='pdf')
+    #elif label=='B20':
+    #    plt.savefig(path+'plots/sample_properties.pdf', format='pdf')
+    #plt.show()
 
-    return
+    return fig
 
 
 def plot_models(thresholds, frac1s, frac2s, ax=None):
@@ -324,6 +349,7 @@ def plot_age_vs_height_scatter(df_all):
     """
     Figure of scatter points, one per system, color-coded by age
     Y axis is Zmax. X axis is arbitrary. 
+    This is deprecated, please use the heatmap version of this below. 
 
     Args:
         df_all (pandas DataFrame): of all systems, eg. trilegal_kepler_all or berger_kepler_all
@@ -396,92 +422,57 @@ def plot_kepmag_vs_cdpp(new_df):
 
     return
 
-def plot_kepmag_vs_cdpp_heatmap(new_df):
+def plot_kepmag_vs_cdpp_heatmap(new_df, label='TRI'):
 
     """
     Plot Kepler magnitude vs CDPP (6 hr)
 
     Input:
     - new_df: pd.DataFrame with Kep mag and CDPP columns
+    - label: TRI or B20
     """
 
-    bins2d = [np.linspace(8, 16, 20), np.linspace(0, 500, 20)]
+    bins2d = [np.linspace(8, 16, 20), np.linspace(0, 1000, 20)]
 
     def actual_plotting(df):
 
-        kepmags = df['Kepler']
-        cdpps = df['cdpp']
+        if label=='TRI':
+            kepmags = df['Kepler']
+            cdpps = df['cdpp']
+        elif label=='B20':
+            kepmags = df['kepmag']
+            cdpps = df['rrmscdpp06p0']
         norm = 10
         hist, xedges, yedges = np.histogram2d(kepmags, cdpps, bins=bins2d)
         hist = hist.T
         #with np.errstate(divide='ignore', invalid='ignore'):  # suppress division by zero warnings
             #hist *= norm / hist.sum(axis=0, keepdims=True)
             #hist *= norm / hist.sum(axis=1, keepdims=True)
-        plt.pcolormesh(xedges, yedges, hist, cmap='Blues')
+        ax = plt.pcolormesh(xedges, yedges, hist, cmap='Blues')
 
         plt.xlabel(r'$m_{Kepler}$')
         plt.ylabel('CDPP rms (6 hr) [ppm]')
         plt.xlim([8, 16])
-        plt.ylim([0, 200])
-        plt.legend(bbox_to_anchor=(1., 1.05))
+        plt.ylim([0, 1000])
+        #plt.legend(bbox_to_anchor=(1., 1.05))
         plt.tight_layout()
         #plt.savefig(path+'plots/trilegal/kepmag_vs_cdpp.png', format='png', bbox_inches='tight')
-        plt.show()
+        #plt.show()
+        return ax
 
     ### test by visualizing
-    new_df_f = new_df.loc[(new_df['Teff'] <= 7500) & (new_df['Teff'] >= 6000)]
-    new_df_g = new_df.loc[(new_df['Teff'] <= 6000) & (new_df['Teff'] >= 5300)]
-    new_df_k = new_df.loc[(new_df['Teff'] <= 5300) & (new_df['Teff'] >= 3500)]
+    #new_df_f = new_df.loc[(new_df['Teff'] <= 7500) & (new_df['Teff'] >= 6000)]
+    #new_df_g = new_df.loc[(new_df['Teff'] <= 6000) & (new_df['Teff'] >= 5300)]
+    #new_df_k = new_df.loc[(new_df['Teff'] <= 5300) & (new_df['Teff'] >= 3500)]
 
-    actual_plotting(new_df)
-    actual_plotting(new_df_f)
-    actual_plotting(new_df_g)
+    ax = actual_plotting(new_df)
+    #actual_plotting(new_df_f)
+    #actual_plotting(new_df_g)
     #actual_plotting(new_df_k)
 
-    return
+    return ax
 
-def plot_kepmag_vs_cdpp_heatmap_berger(old_df):
-
-    """
-    Plot Kepler magnitude vs CDPP (6 hr)
-
-    Input:
-    - old_df: pd.DataFrame with kepmag and rrmscdpp06p0 columns
-    """
-
-    bins2d = [np.linspace(8, 16, 20), np.linspace(0, 500, 20)]
-    old_df = old_df.dropna(subset=['kepmag','rrmscdpp06p0'])
-
-    def actual_plotting(df):
-
-        kepmags = df['kepmag']
-        cdpps = df['rrmscdpp06p0']
-        norm = 10
-        hist, xedges, yedges = np.histogram2d(kepmags, cdpps, bins=bins2d)
-        hist = hist.T
-        plt.pcolormesh(xedges, yedges, hist, cmap='Greens')
-
-        plt.xlabel(r'$m_{Kepler}$')
-        plt.ylabel('CDPP rms (6 hr) [ppm]')
-        plt.xlim([8, 16])
-        plt.ylim([0, 500])
-        plt.legend(bbox_to_anchor=(1., 1.05))
-        plt.tight_layout()
-        #plt.savefig(path+'plots/trilegal/kepmag_vs_cdpp.png', format='png', bbox_inches='tight')
-        plt.show()
-
-    ### test by visualizing
-    old_df_f = old_df.loc[(old_df['iso_teff'] <= 7500) & (old_df['iso_teff'] >= 6000)]
-    old_df_g = old_df.loc[(old_df['iso_teff'] <= 6000) & (old_df['iso_teff'] >= 5300)]
-    old_df_k = old_df.loc[(old_df['iso_teff'] <= 5300) & (old_df['iso_teff'] >= 3500)]
-
-    actual_plotting(old_df)
-    actual_plotting(old_df_f)
-    actual_plotting(old_df_g)
-
-    return
-
-def plot_age_vs_height(new_df, label='TRI'):
+def plot_age_vs_height(new_df, label='TRI', normalized=False):
 
     """
     Plot age vs height
@@ -489,9 +480,10 @@ def plot_age_vs_height(new_df, label='TRI'):
     Input:
     - new_df: pd.DataFrame with age and height columns
     - label: 'TRI' or 'B20'
+    - normalized: Bool flag indicating whether to normalize over columns
     """
 
-    bins2d = [np.linspace(0, 8, 20), np.logspace(2, 3, 20)]
+    bins2d = [np.linspace(0, 8, 10), np.logspace(2, 3, 10)]
 
     def actual_plotting(df):
 
@@ -500,39 +492,40 @@ def plot_age_vs_height(new_df, label='TRI'):
         norm = 10
         hist, xedges, yedges = np.histogram2d(ages, heights, bins=bins2d)
         hist = hist.T
-        #with np.errstate(divide='ignore', invalid='ignore'):  # suppress division by zero warnings
-            #hist *= norm / hist.sum(axis=0, keepdims=True)
-            #hist *= norm / hist.sum(axis=1, keepdims=True)
+        if normalized==True:
+            with np.errstate(divide='ignore', invalid='ignore'):  # suppress division by zero warnings
+                hist *= norm / hist.sum(axis=0, keepdims=True)
+                #hist *= norm / hist.sum(axis=1, keepdims=True)
         if label=='TRI':
-            plt.pcolormesh(xedges, yedges, hist, cmap='Blues')
+            ax = plt.pcolormesh(xedges, yedges, hist, cmap='Blues')
             plt.xlabel('TRILEGAL age [Gyr]')
             plt.ylabel('TRILEGAL height [pc]')
         elif label=='B20':
-            plt.pcolormesh(xedges, yedges, hist, cmap='Greens')
+            ax = plt.pcolormesh(xedges, yedges, hist, cmap='Blues')
             plt.xlabel('B20 age [Gyr]')
             plt.ylabel('B20 height [pc]')
-        plt.legend(bbox_to_anchor=(1., 1.05))
+        #plt.legend(bbox_to_anchor=(1., 1.05))
         plt.tight_layout()
-        if label=='TRI':
-            plt.savefig(path+'plots/trilegal/age_vs_height.png', format='png', bbox_inches='tight')
-        elif label=='B20':
-            plt.savefig(path+'plots/age_vs_height.png', format='png', bbox_inches='tight')
-        plt.show()
+        #if label=='TRI':
+        #    plt.savefig(path+'plots/trilegal/age_vs_height_normalized.png', format='png', bbox_inches='tight')
+        #elif label=='B20':
+        #    plt.savefig(path+'plots/age_vs_height_normalized.png', format='png', bbox_inches='tight')
+        #plt.show()
 
     ### test by visualizing
     #new_df_f = new_df.loc[(new_df['Teff'] <= 7500) & (new_df['Teff'] >= 6000)]
     #new_df_g = new_df.loc[(new_df['Teff'] <= 6000) & (new_df['Teff'] >= 5300)]
     #new_df_k = new_df.loc[(new_df['Teff'] <= 5300) & (new_df['Teff'] >= 3500)]
 
-    actual_plotting(new_df)
+    ax = actual_plotting(new_df)
     #actual_plotting(new_df_f)
     #actual_plotting(new_df_g)
     #actual_plotting(new_df_k)
 
-    return
+    return ax
 
 """ 
-STATISTICS
+SAMPLING MENU
 """
 
 def rejection_sampling(data1, data2):
@@ -654,22 +647,3 @@ def matched_sampling(data1, data2):
     new_data2 = valid_pool.groupby(cols_to_match, group_keys=False).apply(sample_by_size)
 
     return new_data2
-
-
-def infer_stellar_radius(reference, mass, lum, teff):
-    """
-    Avoid Stefan-Boltzmann because it under-predicts radius.
-
-    Args:
-        reference (pd.DataFrame): reference DF
-        mass (pd.Series): stellar mass [solar masses]
-        lum (pd.Series): stellar luminosity [solar lum]
-        teff (pd.Series): effective temp [K]
-    """
-
-    mass_bins = np.linspace(0, 3, 100)
-    lum_bins = np.linspace(0, 1000, 100) 
-    teff_bins = np.linspace(4800, 7500, 100)
-
-    return radius
-    

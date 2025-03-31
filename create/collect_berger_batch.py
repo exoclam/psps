@@ -113,16 +113,16 @@ piecewise (3.5, 1, 60): f=too small; (3.5, 1, 60): f=0.35; (3.5, 1, 70): f=0.33 
 """
 
 # operative parameters
-threshold = 5.5
-frac1 = 0.05
-frac2 = 0.60
+threshold = 11
+frac1 = 0.33
+frac2 = 0.33
 
-name_thresh = 55
-name_f1 = 5
-name_f2 = 60
+name_thresh = 11
+name_f1 = 33
+name_f2 = 33
 name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 #name = 'monotonic_'+str(name_f1)+'_'+str(name_f2) # f=
-name = 'piecewise_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2) # f=0.31, f=0.30, f=
+#name = 'piecewise_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2) # f=0.31, f=0.30, f=
 
 # new, one-time completeness map
 #completeness_map = pd.read_csv(path+'data/completeness_map.csv') 
@@ -210,6 +210,9 @@ for i in tqdm(range(len(sim))):
     berger_kepler_planets = berger_kepler_planets.loc[(berger_kepler_planets['periods'] <= 40) & (berger_kepler_planets['periods'] > 1)] # limit periods to fairly compare with Zink+ 2023
     berger_kepler_planets = berger_kepler_planets.loc[berger_kepler_planets['planet_radii'] <= 4.] # limit radii to fairly compare with SEs in Zink+ 2023 (2)...or how about include SNs too (4)?
     berger_kepler_planets_counts = np.array(berger_kepler_planets.groupby(['height_bins']).count().reset_index()['kepid'])
+
+    utils.plot_age_vs_height(berger_kepler_all, label='B20')
+    quit()
 
     physical_planet_occurrence = 100 * berger_kepler_planets_counts/berger_kepler_counts 
     physical_planet_occurrences.append(physical_planet_occurrence)
@@ -412,7 +415,7 @@ for i in tqdm(range(len(sim))):
         #plt.hist(trilegal_kepler_transiters4['age'], label='bin 4', alpha=0.5)
         plt.hist(berger_kepler_transiters5['age'], label='bin 5', alpha=0.5)
         plt.xlabel('age [Gyr]')
-        plt.legend()
+        plt.legend()    
         plt.show()
         quit()
         """
@@ -553,7 +556,7 @@ def power_model(x, yerr, y=None):
     #print("tau: ", tau)
     #print("occurrence: ", occurrence)
     #print("sample model: ", model(z_max, tau, occurrence))
-    
+    #quit()
     with numpyro.plate("data", len(x)):
         numpyro.sample("planet_yield", dist.Normal(planet_yield, yerr), obs=y)
 
@@ -708,8 +711,8 @@ y = np.where(x <= threshold, frac1, frac2)
 #y = b + m * x
 
 # piecewise model
-m = (frac2 - frac1)/(x[-1] - threshold)
-y = np.where(x < threshold, frac1, frac1 + m * (x-threshold))
+#m = (frac2 - frac1)/(x[-1] - threshold)
+#y = np.where(x < threshold, frac1, frac1 + m * (x-threshold))
 
 ax2.plot(x, y, color='powderblue')
 ax2.set_xlabel('cosmic age [Gyr]')
@@ -717,7 +720,7 @@ ax2.set_ylabel('planet host fraction')
 ax2.set_ylim([0,1])
 
 fig.tight_layout()
-plt.savefig(path+'plots/model_vs_zink_'+name+'.png', format='png', bbox_inches='tight')
+#plt.savefig(path+'plots/model_vs_zink_'+name+'_z23.png', format='png', bbox_inches='tight')
 
 #plt.errorbar(x=zink_kepler['scale_height'], y=zink_kepler['occurrence'], yerr=(zink_kepler['occurrence_err1'], zink_kepler['occurrence_err2']), fmt='o', capsize=3, elinewidth=1, markeredgewidth=1, label='Zink+ 2023 Kepler data')
 #plt.scatter(x=zink_kepler['scale_height'], y=physical_planet_occurrence, c='red', label='model')

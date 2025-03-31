@@ -351,13 +351,13 @@ class Star:
     """
 
     def __init__(
-        self, age, stellar_radius, stellar_mass, rrmscdpp06p0, height, alpha_se, alpha_sn, frac_host, prob_intact, kepid=None, **kwargs 
+        self, age, stellar_radius, stellar_mass, Teff, rrmscdpp06p0, height, alpha_se, alpha_sn, frac_host, prob_intact, kepid=None, **kwargs 
     ):
-
         #self.kepid = kepid
         self.age = age
         self.stellar_radius = np.array(stellar_radius)
         self.stellar_mass = np.array(stellar_mass)
+        self.Teff = np.array(Teff)
         self.rrmscdpp06p0 = np.array(rrmscdpp06p0)
         self.frac_host = frac_host
         self.height = np.array(height)
