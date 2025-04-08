@@ -211,7 +211,8 @@ for i in tqdm(range(len(sim))):
     berger_kepler_planets = berger_kepler_planets.loc[berger_kepler_planets['planet_radii'] <= 4.] # limit radii to fairly compare with SEs in Zink+ 2023 (2)...or how about include SNs too (4)?
     berger_kepler_planets_counts = np.array(berger_kepler_planets.groupby(['height_bins']).count().reset_index()['kepid'])
 
-    utils.plot_age_vs_height(berger_kepler_all, label='B20')
+    ax = utils.plot_age_vs_height(berger_kepler_all, label='B20', normalized=True)
+    plt.show()
     quit()
 
     physical_planet_occurrence = 100 * berger_kepler_planets_counts/berger_kepler_counts 
