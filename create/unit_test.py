@@ -142,13 +142,14 @@ frac2 = 0.3 # 0.55 led to f=0.3, high Z being too high, low Z being a bit low; y
 # piecewise: 7.5, 0.01, 0.9 --> f=0.27 (lowest Z is low, all else perfect); 7.5, 0.01, 0.95 --> f=0.28 (flat, way off); 7.5, 0.03, 0.9 --> f=0.28 (flat, way off); 7.5, 0.05, 0.9 --> f=0.30 (better, if only lowest Z was a tad higher); 7.5, 0.1, 0.9 --> f=0.33 (flat, but bc the middle point is the only one that's too high)
 # piecewise: 5, 0.05, 0.95 --> f=
 
-"""
+#"""
 # make Fig 3 for Paper III, in order to show a sample platter of step function models
-thresholds = np.array([12, 11.5, 11, 9.5, 7.5, 5.5])
-f1s = np.array([0.2, 0.2, 0.15, 0.1, 0.01, 0.01])
-f2s = np.array([0.95, 0.85, 0.8, 0.65, 0.5, 0.4])
-utils.plot_models(thresholds, f1s, f2s)
-"""
+thresholds = np.array([12, 11.5, 11, 9.5, 7.5, 5.5, 5.5])
+f1s = np.array([0.2, 0.2, 0.15, 0.1, 0.01, 0.01, 0.33])
+f2s = np.array([0.95, 0.85, 0.8, 0.65, 0.5, 0.4, 0.33])
+utils.plot_models(thresholds, f1s, f2s, ax=None, lookback=True)
+quit()
+#"""
 
 name_thresh = 115
 name_f1 = 20

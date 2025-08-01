@@ -998,7 +998,7 @@ def draw_asymmetrically(df, mode_name, err1_name, err2_name, drawn):
     elif drawn=='stellar_mass':
         x = np.linspace(0.5, 2.5, 100)
     elif drawn=='Teff':
-        x = np.linspace(3700, 7500, 1000)
+        x = np.linspace(5300, 7500, 1000) # x = np.linspace(3700, 7500, 1000); Z23 did (4000, 6500, 1000)
     elif drawn=='stellar_feh':
         x = np.linspace(-0.5, 0.5, 100)
     elif drawn=='distance':
@@ -1029,6 +1029,7 @@ def draw_asymmetrically(df, mode_name, err1_name, err2_name, drawn):
         err1 = df_or_uniques.iloc[i][err1_name]
         err2 = np.abs(df_or_uniques.iloc[i][err2_name])
         
+        #"""
         # symmetric uncertainties
         if err1==err2:
             draw = 0
@@ -1048,6 +1049,24 @@ def draw_asymmetrically(df, mode_name, err1_name, err2_name, drawn):
                 print("EXCEPTION: ", i, pdf, mode, err1, err2)
                 print(e)
                 break
+                continue
+        #"""
+
+        """
+        ### make all draws the same way, symmetric or asymmetric
+        pdf = make_pdf_rows(x, mode, err1, err2)
+        pdf = pdf/np.sum(pdf)
+
+        try:
+            draw = 0
+            while draw <= 0: # make sure the draw is positive
+                draw = np.around(np.random.choice(x, p=pdf), 2)
+        except Exception as e:
+            print("EXCEPTION: ", i, pdf, mode, err1, err2)
+            print(e)
+            break
+        """
+
         #print(mode, err1, err2, draw)
         draws[i] = draw
 

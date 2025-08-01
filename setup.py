@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = "psps",
-    version = "0.0.7", 
+    version = "0.0.8", 
     #packages = find_packages(),
     packages = ['psps'],
     package_dir={"":"src"},

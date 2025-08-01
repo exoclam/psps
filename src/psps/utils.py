@@ -99,7 +99,7 @@ def plot_properties(df, label='TRI'):
     return fig
 
 
-def plot_models(thresholds, frac1s, frac2s, ax=None):
+def plot_models(thresholds, frac1s, frac2s, ax=None, lookback=False):
     """
     Make Fig 3 in Paper III, ie. a sample of the step function models for which we later show results 
     
@@ -108,10 +108,32 @@ def plot_models(thresholds, frac1s, frac2s, ax=None):
     - frac1s: list of initial planet host fraction, before threshold
     - frac2s: list of planet host fraction after threshold
     - ax: matplotlib ax object, for modular plotting
-
+    - lookback: boolean flag (default is false, aka cosmic time)
     """
     
-    x = np.linspace(0, 14, 1000)
+    if (lookback==True) and (ax==None):
+        x = np.linspace(0, 14, 1000)
+        fig, ax1 = plt.subplots()
+        for i in range(len(frac1s)):
+            threshold = thresholds[i]
+            frac1 = frac1s[i]
+            frac2 = frac2s[i]
+
+            y = np.where(x <= 13.7 - threshold, frac2, frac1)
+
+            ax1.plot(x, y, color='steelblue', linewidth=2)
+
+        ax1.set_xlabel('lookback time [Gyr]')
+        ax1.set_ylabel('planet host fraction')
+        ax1.set_ylim([0,1])
+        #ax1.invert_xaxis()
+        plt.savefig(path+'plots/models_lookback.png', format='png', bbox_inches='tight')
+        plt.show()
+
+        return 
+    else: 
+        x = np.linspace(14, 0, 1000)
+
     if ax is None:
         # step model
         for i in range(len(frac1s)):

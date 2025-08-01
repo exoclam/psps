@@ -113,13 +113,13 @@ piecewise (3.5, 1, 60): f=too small; (3.5, 1, 60): f=0.35; (3.5, 1, 70): f=0.33 
 """
 
 # operative parameters
-threshold = 11
-frac1 = 0.33
-frac2 = 0.33
+threshold = 5.5
+frac1 = 0.01
+frac2 = 0.35
 
-name_thresh = 11
-name_f1 = 33
-name_f2 = 33
+name_thresh = 55
+name_f1 = 1
+name_f2 = 35
 name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 #name = 'monotonic_'+str(name_f1)+'_'+str(name_f2) # f=
 #name = 'piecewise_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2) # f=0.31, f=0.30, f=
@@ -211,10 +211,9 @@ for i in tqdm(range(len(sim))):
     berger_kepler_planets = berger_kepler_planets.loc[berger_kepler_planets['planet_radii'] <= 4.] # limit radii to fairly compare with SEs in Zink+ 2023 (2)...or how about include SNs too (4)?
     berger_kepler_planets_counts = np.array(berger_kepler_planets.groupby(['height_bins']).count().reset_index()['kepid'])
 
-    ax = utils.plot_age_vs_height(berger_kepler_all, label='B20', normalized=True)
-    plt.show()
-    quit()
-
+    #ax = utils.plot_age_vs_height(berger_kepler_all, label='B20', normalized=True)
+    #plt.show()
+    
     physical_planet_occurrence = 100 * berger_kepler_planets_counts/berger_kepler_counts 
     physical_planet_occurrences.append(physical_planet_occurrence)
 
@@ -601,7 +600,7 @@ print("occurrence std: ", occurrence_std)
 
 ### set up plotting
 fig, ax1 = plt.subplots(1, 1, figsize=(10, 5))
-left, bottom, width, height = [0.16, 0.3, 0.15, 0.15]
+left, bottom, width, height = [0.16, 0.25, 0.25, 0.25]
 ax2 = fig.add_axes([left, bottom, width, height])
 
 # zink model
@@ -703,8 +702,10 @@ ax1.set_ylabel("planets per 100 stars")
 ax1.legend(loc='upper left', bbox_to_anchor=[1.0, 1.05])
 
 # step model
-x = np.linspace(0, 14, 1000)
-y = np.where(x <= threshold, frac1, frac2)
+#x = np.linspace(0, 14, 1000)
+#y = np.where(x <= threshold, frac1, frac2)
+x = np.linspace(14, 0, 1000)
+y = np.where(x <= 13.7 - threshold, frac2, frac1)
 
 # monotonic model
 #b = frac1
@@ -715,13 +716,14 @@ y = np.where(x <= threshold, frac1, frac2)
 #m = (frac2 - frac1)/(x[-1] - threshold)
 #y = np.where(x < threshold, frac1, frac1 + m * (x-threshold))
 
-ax2.plot(x, y, color='powderblue')
-ax2.set_xlabel('cosmic age [Gyr]')
+ax2.plot(x, y, color='powderblue', linewidth=2)
+#ax2.invert_xaxis()
+ax2.set_xlabel('lookback time [Gyr]')
 ax2.set_ylabel('planet host fraction')
 ax2.set_ylim([0,1])
 
 fig.tight_layout()
-#plt.savefig(path+'plots/model_vs_zink_'+name+'_z23.png', format='png', bbox_inches='tight')
+plt.savefig(path+'plots2/results'+name+'_lookback.png', format='png', bbox_inches='tight')
 
 #plt.errorbar(x=zink_kepler['scale_height'], y=zink_kepler['occurrence'], yerr=(zink_kepler['occurrence_err1'], zink_kepler['occurrence_err2']), fmt='o', capsize=3, elinewidth=1, markeredgewidth=1, label='Zink+ 2023 Kepler data')
 #plt.scatter(x=zink_kepler['scale_height'], y=physical_planet_occurrence, c='red', label='model')

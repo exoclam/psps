@@ -84,10 +84,10 @@ print(berger_kepler) # 27294
 berger_kepler = berger_kepler.loc[berger_kepler['rrmscdpp06p0'] <= 1000]
 print(berger_kepler) # 27161
 
-fig = utils.plot_properties(berger_kepler, label='B20')
-plt.savefig(path+'plots/sample_properties_b20.pdf', format='pdf')
-plt.show()
-quit()
+#fig = utils.plot_properties(berger_kepler, label='B20')
+#plt.savefig(path+'plots/sample_properties_b20.pdf', format='pdf')
+#plt.show()
+#quit()
 
 # draw eccentricities using Van Eylen+ 2019
 model_flag = 'rayleigh'
@@ -119,7 +119,10 @@ for j in tqdm(range(5)):
     berger_kepler_temp = simulate_helpers.draw_asymmetrically(berger_kepler_temp, 'iso_age', 'iso_age_err1', 'iso_age_err2', 'age')
     berger_kepler_temp = simulate_helpers.draw_asymmetrically(berger_kepler_temp, 'iso_mass', 'iso_mass_err1', 'iso_mass_err2', 'stellar_mass')
     berger_kepler_temp = simulate_helpers.draw_asymmetrically(berger_kepler_temp, 'iso_teff', 'iso_teff_err1', 'iso_teff_err2', 'Teff')
-
+    print(len(np.unique(berger_kepler_temp.kepid)))
+    print(berger_kepler_temp)
+    print(berger_kepler_temp.loc[(berger_kepler_temp['Teff'] >= 5300) & (berger_kepler_temp['Teff'] <= 7500)])
+    quit()
     # enrich berger_kepler with z_maxes using gala
     #z_maxes = simulate_helpers.gala_galactic_heights(merged, output=False)
     #berger_kepler_temp['height'] = z_maxes # kpc
@@ -171,11 +174,17 @@ for j in tqdm(range(5)):
 
     # convert back to DataFrame
     berger_kepler_all = pd.DataFrame.from_records(star_data)
+    print(berger_kepler_all)
 
-    utils.plot_properties(berger_kepler_all, label='B20')
-    quit()
+    #utils.plot_properties(berger_kepler_all, label='B20')
+    #quit()
     # do this thing where I make B20 look like TRI, instead of the other way around
     berger_kepler_all = berger_kepler_all.loc[berger_kepler_all['age'] <= 8.]
+    print(np.min(berger_kepler_all.Teff))
+    print(len(berger_kepler_all))
+    plt.hist(berger_kepler_all['Teff'], bins=np.linspace(4000, 7500, 100))
+    plt.show()
+    quit()
 
     berger_kepler_planets = berger_kepler_all.loc[berger_kepler_all.num_planets > 0]
     #berger_kepler_planets = berger_kepler_planets.loc[(berger_kepler_planets['periods'] <= 40) & (berger_kepler_planets['periods'] > 1)] # limit periods to fairly compare with Zink+ 2023
