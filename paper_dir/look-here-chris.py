@@ -54,16 +54,16 @@ def literal_eval_w_exceptions(x):
 
 # choose the same parameters as those from the first tutorial. 
 # As you start changing these parameters, be careful that these are correct.
-threshold = 5.5
-frac1 = 0.05
-frac2 = 0.6
+threshold = 12
+frac1 = 0.20
+frac2 = 0.95
 
-name_thresh = 55
-name_f1 = 5
-name_f2 = 60
-#name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
+name_thresh = 12
+name_f1 = 20
+name_f2 = 95
+name = 'step_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2)
 #name = 'monotonic_'+str(name_f1)+'_'+str(name_f2) 
-name = 'piecewise_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2) 
+#name = 'piecewise_'+str(name_thresh)+'_'+str(name_f1)+'_'+str(name_f2) 
 
 sim_tri = sorted(glob(path+'data/trilegal2/' + name + '/' + name + '*'))
 sim_b20 = sorted(glob(path+'data/berger_gala2/' + name + '/' + name + '*'))
@@ -78,8 +78,7 @@ height_bin_midpoints = 0.5 * (np.logspace(2,3,6)[1:] + np.logspace(2,3,6)[:-1])
 ### PRODUCE TRILEGAL PHYSICAL OCCURRENCES VS HEIGHT
 physical_planet_occurrences_tri = []
 
-for i in tqdm(range(2)):
-#for i in tqdm(range(len(sim_tri))):
+for i in tqdm(range(len(sim_tri))):
     trilegal_kepler_all = pd.read_csv(sim_tri[i], sep=',') #, on_bad_lines='skip'
     trilegal_kepler_all = trilegal_kepler_all.reset_index() # convert index to regular column so I can explode on it later
 
@@ -112,8 +111,7 @@ physical_planet_occurrences_b20 = []
 detected_planet_occurrences_all_b20 = []
 adjusted_planet_occurrences_all_b20 = []
 
-for i in tqdm(range(2)):
-#for i in tqdm(range(len(sim_b20))):
+for i in tqdm(range(len(sim_b20))):
     
     berger_kepler_all = pd.read_csv(sim_b20[i], sep=',') #, on_bad_lines='skip'
     
@@ -150,7 +148,7 @@ for i in tqdm(range(2)):
     #piv_detecteds = []
 
     #completeness_all = []
-    for k in range(3): # 30
+    for k in range(30): 
 
         ### Simulate detections from these synthetic systems
         prob_detections, transit_statuses, sn, geom_transit_statuses = simulate_transit.calculate_transit_vectorized(berger_kepler_planets.periods, 
@@ -317,8 +315,6 @@ models_se = []
 models_sn = []
 zink_csv = pd.read_csv(path+'data/SupEarths_combine_GaxScale_teff_fresh.csv')
 zink_csv_sn = pd.read_csv(path+'data/SubNeptunes_combine_GaxScale_teff_fresh.csv')
-print(zink_csv)
-print(zink_csv_sn)
 
 for i in range(len(zink_csv)):
     row = zink_csv.iloc[i]
@@ -333,46 +329,10 @@ sum_model = zink_csv['model'] + zink_csv_sn['model']
 for temp_list in zip_longest(*sum_model):
     yield_max.append(np.percentile(temp_list, 84)) # plus one sigma
     yield_min.append(np.percentile(temp_list, 16)) # minus one sigma
-
-#"""
-#print(np.array(zink_kepler_occurrence_err1), np.array(zink_kepler_occurrence_err2))
-#print(0.5*(np.array(zink_kepler_occurrence_err1) + np.array(zink_kepler_occurrence_err2)))
-### what is actually the combined Z23 tau and gamma? 
-run_optim = numpyro_ext.optim.optimize(
-        power_model, init_strategy=numpyro.infer.init_to_median()
-    )
-opt_params = run_optim(jax.random.PRNGKey(5), height_bin_midpoints, 0.5*(np.array(zink_kepler_occurrence_err1) + np.array(zink_kepler_occurrence_err2)), y=np.array(zink_kepler_occurrence))
-
-# sample posteriors for best-fit model to simulated data
-sampler = infer.MCMC(
-    infer.NUTS(power_model, dense_mass=True,
-        regularize_mass_matrix=False,
-        init_strategy=numpyro.infer.init_to_value(values=opt_params)), 
-    num_warmup=10000,
-    num_samples=10000,
-    num_chains=8,
-    progress_bar=True,
-)
-
-sampler.run(jax.random.PRNGKey(0), height_bin_midpoints, 0.5*(np.array(zink_kepler_occurrence_err1) + np.array(zink_kepler_occurrence_err2)), y=np.array(zink_kepler_occurrence))
-inf_data = az.from_numpyro(sampler)
-print(az.summary(inf_data))
-
-tau_ours = inf_data.posterior.data_vars['tau'].mean().values
-print("tau: ", tau_ours)
-tau_std = inf_data.posterior.data_vars['tau'].std().values
-print("tau std: ", tau_std)
-
-occurrence_ours = inf_data.posterior.data_vars['occurrence'].mean().values
-print("occurrence: ", occurrence_ours)
-occurrence_std = inf_data.posterior.data_vars['occurrence'].std().values
-print("occurrence std: ", occurrence_std)
-quit()
-#"""
     
 ### set up plotting
 fig, ax1 = plt.subplots(1, 1, figsize=(10, 5))
-left, bottom, width, height = [0.16, 0.25, 0.25, 0.25]
+left, bottom, width, height = [0.16, 0.3, 0.15, 0.15]
 ax2 = fig.add_axes([left, bottom, width, height])
 
 # zink+2023
@@ -422,8 +382,7 @@ ax1.legend(loc='upper left', bbox_to_anchor=[0.675, 0.5], prop={'size': 12})
 
 # step model
 x = np.linspace(0, 14, 1000)
-#y = np.where(x <= threshold, frac1, frac2) # cosmic
-y = np.where(x <= 13.7 - threshold, frac2, frac1) # lookback
+y = np.where(x <= threshold, frac1, frac2)
 
 # monotonic model
 #b = frac1
@@ -431,16 +390,14 @@ y = np.where(x <= 13.7 - threshold, frac2, frac1) # lookback
 #y = b + m * x
 
 # piecewise model
-m = (frac2 - frac1)/(x[-1] - threshold) # cosmic
-m = m * -1
-#y = np.where(x < threshold, frac1, frac1 + m * (x-threshold)) # cosmic
-y = np.where(x < 13.7 - threshold, frac1 + m * (x-(13.7-threshold)), frac1) # lookback
+#m = (frac2 - frac1)/(x[-1] - threshold)
+#y = np.where(x < threshold, frac1, frac1 + m * (x-threshold))
 
-ax2.plot(x, y, color='steelblue')
-ax2.set_xlabel('lookback time [Gyr]')
+ax2.plot(x, y, color='powderblue')
+ax2.set_xlabel('cosmic age [Gyr]')
 ax2.set_ylabel('planet host fraction')
 ax2.set_ylim([0,1])
 
 fig.tight_layout()
-plt.savefig(path+'plots2/results_'+name+'_lookback.png', format='png', bbox_inches='tight')
+plt.savefig(path+'plots/results_'+name+'.png', format='png', bbox_inches='tight')
 plt.show()
