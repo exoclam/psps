@@ -126,6 +126,23 @@ def dist_kepler_to_height(d):
 
     return h
 
+def dist_k2_to_height(d, b):
+    """
+    K2 fields have variable inclinations, so we need a second parameter, b, to do trigonometry.
+
+    Inputs:
+    - d: distance, in pc
+    - b: inclination from Galactic midplane, in deg
+
+    Output:
+    - h: height off the Galactic midplane, in pc
+    """
+
+    incl = degrees_to_radians(b)
+    h = d * np.sin(incl)
+
+    return h
+
 def stellar_radius_stefan_boltzmann(T, L):
     """
     Use Stefan-Boltzmann law to calculate stellar radius. 
