@@ -1210,7 +1210,7 @@ def draw_planet_periods_and_radii(num_planets, alpha_se, alpha_sn, m_star):
     hill_radius_check = True
 
     # initially assign planet planet periods from loguniform distribution from 2 to 300 days
-    periods = jnp.sort(jnp.array(loguniform.rvs(2, 300, size=num_planets)))
+    periods = jnp.sort(jnp.array(loguniform.rvs(1, 300, size=num_planets)))
 
     # draw planet radii
     planet_radii = draw_planet_radii(periods, alpha_se, alpha_sn)
@@ -1557,7 +1557,7 @@ def completeness(physical, detected):
     geom = physical.loc[physical['geom_transit_status']==1]
     #print(geom.loc[((geom['planet_radii'] > 3.667) & (geom['planet_radii'] <= 4) & (geom['periods'] > 3.49) & (geom['periods'] <= 6.09))])
 
-    period_grid = np.logspace(np.log10(2), np.log10(40), 10)
+    period_grid = np.logspace(np.log10(1), np.log10(40), 10)
     radius_grid = np.linspace(1, 4, 10)
 
     # physical occurrence map
