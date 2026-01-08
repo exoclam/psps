@@ -1708,10 +1708,10 @@ def adjust_for_completeness(df, completeness_map, radius_grid, period_grid, flag
 def adjust_for_completeness2(df, completeness_map, radius_grid, period_grid):
     
     """
-    For a given DataFrame of planets, group by radius and period bins, then take completeness map and adjust transit_status counts per cell
+    For a given DataFrame of planets, group by radius and period bins, then take completeness map and adjust transit_status counts per cell. DEPRECATED.
 
     Inputs:
-    - df: DataFrame of planets
+    - df: DataFrame of detected planets
     - completeness map: completeness map of detected vs generated planets, grouped by radius and period bins
     - radius_grid: list of radius bins
     - period_grid: list of period bins
@@ -1723,7 +1723,7 @@ def adjust_for_completeness2(df, completeness_map, radius_grid, period_grid):
 
     """
     
-    period_grid = np.logspace(np.log10(2), np.log10(40), 10)
+    period_grid = np.logspace(np.log10(1), np.log10(40), 10)
     radius_grid = np.linspace(1, 4, 10)
     # new, experimental way of applying completeness map
     df['radius_bins'] = pd.cut(df['planet_radii'], bins=radius_grid, include_lowest=True)

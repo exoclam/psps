@@ -332,8 +332,6 @@ class Star:
 
     Functions that make planetary systems, at the per-star level
 
-    Attributes, first four from Berger+ 2020 sample:
-    - kepid: Kepler identifier
     - age: drawn stellar age, in Gyr
     - stellar_radius: drawn stellar radius, in Solar radii
     - stellar_mass: drawn stellar mass, in Solar masses
@@ -343,7 +341,9 @@ class Star:
     - alpha_sn: power law exponent for Sub-Neptune radii
     - frac_host: calculated fraction of planet hosts, defaults to Zhu+20 but can be tunable 
     - prob_intact: probability of being dynamically cool; defaults to Lam+24 probability, but can be tunable
-    - kepid: default to None, unless user provides Kepler IDs
+    - campaign: K2 field [str]
+    - baseline: K2 field baseline [days]
+    - EPIC: K2 Ecliptic Plane Input Catalog identifier
 
     Output:
     - Star object, which is populated by Planets
@@ -351,9 +351,9 @@ class Star:
     """
 
     def __init__(
-        self, age, stellar_radius, stellar_mass, Teff, rrmscdpp06p0, height, alpha_se, alpha_sn, frac_host, prob_intact, kepid=None, **kwargs 
+        self, age, stellar_radius, stellar_mass, Teff, rrmscdpp06p0, height, alpha_se, alpha_sn, frac_host, prob_intact, campaign, baseline, EPIC=None, logistic_a=0.6095, logistic_k=0.6088, logistic_l=10.8986, **kwargs 
     ):
-        self.kepid = kepid
+        self.EPIC = EPIC
         self.age = age
         self.stellar_radius = np.array(stellar_radius)
         self.stellar_mass = np.array(stellar_mass)
@@ -363,8 +363,12 @@ class Star:
         self.height = np.array(height)
         self.alpha_se = alpha_se
         self.alpha_sn = alpha_sn
-        self.kepid = np.array(kepid)
-        #print(self.kepid, self.stellar_radius, self.stellar_mass, self.rrmscdpp06p0, self.height)
+        self.campaign = campaign
+        self.baseline = baseline
+        self.logistic_a = logistic_a
+        self.logistic_k = logistic_k
+        self.logistic_l = logistic_l
+        #print(self.EPIC, self.stellar_radius, self.stellar_mass, self.rrmscdpp06p0, self.height)
 
         #self.midplane = jax.random.uniform(key, minval=-np.pi/2, maxval=np.pi/2)
         self.midplane = np.random.uniform(low=-np.pi/2, high=np.pi/2) # JAX, but I need to figure out how to properly randomly draw
