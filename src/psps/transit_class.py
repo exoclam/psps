@@ -328,7 +328,7 @@ class Population:
 
 class GeneralStar:
     def __init__(
-        self, GaiaDR3, age, stellar_radius, stellar_mass, Teff, rrmscdpp06p0, height, alpha_se, alpha_sn, frac_host, prob_intact, **kwargs 
+        self, GaiaDR3, age, stellar_radius, stellar_mass, Teff, rrmscdpp06p0, height, alpha_se, alpha_sn, frac_host, prob_intact, baseline=None, logistic_a=None, logistic_k=None, logistic_l=None, **kwargs 
     ):
         self.GaiaDR3 = GaiaDR3
         self.age = age
@@ -340,6 +340,10 @@ class GeneralStar:
         self.height = np.array(height)
         self.alpha_se = alpha_se
         self.alpha_sn = alpha_sn
+        self.baseline = baseline
+        self.logistic_a = logistic_a
+        self.logistic_k = logistic_k
+        self.logistic_l = logistic_l
 
         self.midplane = np.random.uniform(low=-np.pi/2, high=np.pi/2)
 
