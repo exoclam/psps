@@ -877,6 +877,121 @@ def model_van_eylen(star_age, df, model_flag, cube):
 
     return berger_kepler_planets
 
+### K2 completeness functions
+
+def calculate_mes(rp, rs, pp, cdpp, baseline):
+	"""
+	Calculate Multiple Event Statistic, per Eqn 5 of Zink+22 https://iopscience.iop.org/article/10.3847/1538-3881/ac2309#ajac2309t3
+
+	Args:
+		rp (float): planet radius, Earth radii
+		rs (float): stellar radius, Solar radii
+		pp (float): planet period, days
+		cdpp (float): CDPP for 6 hr transit duration (or whatever, but keep it the same!)
+		baseline (int): K2 campaign length, days
+
+	Returns:
+		mes: Multiple Event Statistic, for use in computing detection efficiency
+	"""
+	cdpp = cdpp / 1e6 # convert from ppm to parts per unit, since transit depth is expressed as such
+	n_transits = np.floor(baseline/pp).astype(float)
+	rp = simulate_helpers.earth_radius_to_au(rp)
+	rs = simulate_helpers.solar_radius_to_au(rs)
+	depth = (rp/rs)**2
+	mes = 0.9488 * (depth/cdpp) * np.sqrt(n_transits)
+	return mes
+
+def calculate_recovery_fraction(mes, a, k, l):
+	"""
+	Compute the y value of the logistic recovery efficiency function of Eqn 6 in Zink+22 https://iopscience.iop.org/article/10.3847/1538-3881/ac2309#ajac2309t3
+
+	Args:
+		mes (float): Multiple Event Statistic, output of mes()
+		a (float): see Table 3 of https://iopscience.iop.org/article/10.3847/1538-3881/ac2309#ajac2309t3
+		k (float): see Table 3 of https://iopscience.iop.org/article/10.3847/1538-3881/ac2309#ajac2309t3
+		l (float): see Table 3 of https://iopscience.iop.org/article/10.3847/1538-3881/ac2309#ajac2309t3
+
+	Returns:
+		f: recovery fraction
+	"""
+
+	denominator = 1 + np.exp(-k*(mes-l))
+	f = a/denominator
+	return f
+
+def calculate_transit_vectorized_k2(P, star_radius, planet_radius, e, incl, omega, star_mass, cdpps, baseline, angle_flag, logistic_a=0.6095, logistic_k=0.6088, logistic_l=10.8986):
+    """
+    Params: columns of the berger_kepler dataframe
+    - P: planet period, in days
+    - star_radius: in Solar radii
+    - planet_radius: in Earth radii
+    - e: eccentricity
+    - incl: mutual inclination
+    - omega: longitude of periastron
+    - star_mass: in Solar masses
+    - cdpps: originally in ppm
+    - baseline: baseline [days] of K2 field (1-19)
+    - angle_flag: True means indexed at 0; False means indexed at pi/2
+	- logistic_a/k/l: shape parameters for the logistic functional form of the recovery fraction equation Eqn 6 from https://iopscience.iop.org/article/10.3847/1538-3881/ac2309#ajac2309t2
+
+    Returns:
+    - prob_detections: probabilities of detection; Numpy array
+    - transit_statuses: Numpy array
+    - sn: S/N ratios; Numpy array
+    - geom_transit_status: geometric transit status; Numpy array
+    """
+    
+    # reformulate P as a in AU
+    a = simulate_helpers.p_to_a(P, star_mass)
+    #print("a: ", a)
+    
+    # calculate impact parameters; distance units in solar radii
+    b = simulate_helpers.calculate_impact_parameter_vectorized(star_radius, a, e, incl, omega, angle_flag)
+    #print("b: ", b)
+
+    # make sure arrays have explicitly float elements
+    star_radius = star_radius.astype(float)
+    a = a.astype(float)
+    
+    # calculate transit durations using Winn 2011 formula; same units as period
+    #tdur = calculate_transit_duration(P, solar_radius_to_au(star_radius), 
+    #                        earth_radius_to_au(planet_radius), b, a, incl, e, omega)
+    # Matthias's planet params are in solar units
+    tdur = simulate_helpers.calculate_transit_duration_vectorized(P, simulate_helpers.solar_radius_to_au(star_radius), 
+        simulate_helpers.earth_radius_to_au(np.array(planet_radius)), b, a, incl, e, omega, angle_flag)
+    # plt.hist(tdur)
+    # plt.xlabel("tdur")
+    # plt.show()
+
+    # calculate CDPP by drawing from Kepler dataset relation with star radius
+    #cdpp = [draw_cdpp(sr, berger_kepler) for sr in star_radius]
+
+    # calculate SN based on MES, Eqn 5 in Zink+22 https://iopscience.iop.org/article/10.3847/1538-3881/ac2309#ajac2309t3
+    mes =  calculate_mes(planet_radius, star_radius, P, cdpps, baseline).astype(float)
+    # print("mes: ", mes)
+    # plt.hist(cdpps)
+    # plt.xlabel("cdpps")
+    # plt.show()
+    # plt.hist(mes, bins=np.linspace(0, 20, 10))
+    # plt.xlabel("mes")
+    # plt.show()
+
+    # calculate recovery function f, Eqn 6 in Zink+22 https://iopscience.iop.org/article/10.3847/1538-3881/ac2309#ajac2309t3
+    recovery_fraction = calculate_recovery_fraction(mes, logistic_a, logistic_k, logistic_l)
+    # print("recovery fraction: ", recovery_fraction)
+    # plt.hist(recovery_fraction)
+    # plt.show()
+    
+    geom_transit_status = np.where(np.abs(b)<=1., True, False)
+
+    # sample transit status and multiplicity based on Fressin detection probability
+    #transit_status = [ts1_elt * ts2_elt for ts1_elt, ts2_elt in zip(ts1, ts2)]
+    transit_status = [np.random.choice([1, 0], p=[rf, 1-rf]) for rf in recovery_fraction]
+    #transit_multiplicities.append(len([ts for ts in transit_status if ts == 1]))
+    #transit_multiplicities.append(len([param for param in b if np.abs(param) <= 1.]))
+
+    return transit_status, mes, recovery_fraction, geom_transit_status
+
 ######Calculate MES, from Jon Zink's ExoMULT (https://github.com/jonzink/ExoMult/blob/master/ScalingK2VIII/ExoMult.py)####
 def MES_calc(period, planet_radius, star_radius, cdpp, b, tobs, f0):
 	

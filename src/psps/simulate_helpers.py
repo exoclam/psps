@@ -18,6 +18,7 @@ import forecaster
 import astropy.coordinates as coord
 import astropy.units as u
 from astropy.table import Table, join
+from astropy.coordinates import SkyCoord, Galactic
 from pyia import GaiaData
 import gala.dynamics as gd
 import gala.potential as gp
@@ -319,6 +320,21 @@ def redundancy_check(m, b, cutoff):
         return True
 
 ### helper physical transit functions
+def convert_ra_dec_to_b(ra, dec):
+	# Create a SkyCoord object in the ICRS (equatorial) frame
+	# ICRS is the standard J2000 equatorial system assumed by default
+	c_icrs = SkyCoord(ra=ra * u.degree, dec=dec * u.degree, frame='icrs')
+
+	# Transform the coordinates to the Galactic frame
+	c_galactic = c_icrs.transform_to(Galactic())
+	# or use the shorthand attribute access:
+	# c_galactic = c_icrs.galactic
+
+	# The Galactic latitude 'b' is the angle from the Galactic midplane (b=0)
+	b = c_galactic.b * u.degree
+	
+	return np.abs(b.value)
+
 def calculate_eccentricity_limbach(multiplicity):
     """
     Draw eccentricities using Limbach & Turner 2014 CDFs relating e to multiplicity
@@ -1213,7 +1229,7 @@ def draw_planet_periods_and_radii(num_planets, alpha_se, alpha_sn, m_star):
     periods = jnp.sort(jnp.array(loguniform.rvs(1, 300, size=num_planets)))
 
     # draw planet radii
-    planet_radii = draw_planet_radii(periods, alpha_se, alpha_sn)
+    planet_radii, se_or_sn = draw_planet_radii(periods, alpha_se, alpha_sn)
 
     # draw planet masses using Forecaster (Chen & Kipping 2016: https://iopscience.iop.org/article/10.3847/1538-4357/834/1/17)
     # code from Ben Cassese: https://github.com/ben-cassese/astro-forecaster 
@@ -1239,7 +1255,7 @@ def draw_planet_periods_and_radii(num_planets, alpha_se, alpha_sn, m_star):
     if hill_radius_check == False:
         periods = draw_planet_periods_and_radii(num_planets, alpha_se, alpha_sn, m_star) # risky recursion of the day
 
-    return periods, planet_radii, planet_masses
+    return periods, planet_radii, planet_masses, se_or_sn
 
 def draw_planet_periods(m, m_star):
     """
@@ -1374,7 +1390,7 @@ def draw_planet_radii(periods, alpha_se, alpha_sn):
     plt.show()
     """
 
-    return radii
+    return radii, se_or_sn
 
 def collect_galactic(df):
     """
