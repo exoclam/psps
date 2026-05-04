@@ -992,6 +992,174 @@ def calculate_transit_vectorized_k2(P, star_radius, planet_radius, e, incl, omeg
 
     return transit_status, mes, recovery_fraction, geom_transit_status
 
+def k2_detection(df, angle_flag):
+    """
+    Params: 
+    - df: exploded Pandas DataFrame of K2 planets
+    - angle_flag: True means indexed at 0; False means indexed at pi/2
+
+    Returns:
+    - transit_statuses: Numpy array
+    - mes: Multiple Event Statistic 
+    - recovery_fraction: recovery fraction as defined by Eqn 6 in Zink+22 (https://iopscience.iop.org/article/10.3847/1538-3881/ac2309#ajac2309t3)
+    - geom_transit_status: geometric transit status; Numpy array
+    """
+
+    if df['logistic_a'] is None:
+        logistic_a = 0.6095
+    else: 
+        logistic_a = df['logistic_a']
+    if df['logistic_k'] is None:
+        logistic_k = 0.6088
+    else: 
+        logistic_k = df['logistic_k']
+    if df['logistic_l'] is None:
+        logistic_l = 10.8986
+    else: 
+        logistic_l = df['logistic_l']
+
+    P = df['periods']
+    star_radius = df['stellar_radius']
+    planet_radius = df['planet_radii']
+    e = df['eccs']
+    mutual_incl = df['mutual_incls']
+    incl = df['incls']
+    omega = df['omegas']
+    star_mass = df['stellar_mass']
+    cdpps = df['rrmscdpp06p0']
+    baseline = df['baseline']
+    
+    # reformulate P as a in AU
+    a = simulate_helpers.p_to_a(P, star_mass)
+
+    # calculate impact parameters; distance units in solar radii
+    b = simulate_helpers.calculate_impact_parameter_vectorized(star_radius, planet_radius, a, e, incl, omega, angle_flag)
+    #b = simulate_helpers.calculate_impact_parameter_vectorized(star_radius, a, e, pd.Series(np.pi/2, index=range(len(incl))), omega, angle_flag)
+    #print("impact parameters: ", b)
+
+    # make sure arrays have explicitly float elements
+    star_radius = star_radius.astype(float)
+    a = a.astype(float)
+
+    # transit duration
+    tdur = simulate_helpers.calculate_transit_duration_vectorized(P, simulate_helpers.solar_radius_to_au(star_radius), 
+        simulate_helpers.earth_radius_to_au(np.array(planet_radius)), b, a, mutual_incl, e, omega, angle_flag)
+
+    # calculate CDPP by drawing from Kepler dataset relation with star radius
+    #cdpp = [draw_cdpp(sr, berger_kepler) for sr in star_radius]
+
+    # calculate SN based on MES, Eqn 5 in Zink+22 https://iopscience.iop.org/article/10.3847/1538-3881/ac2309#ajac2309t3
+    mes =  calculate_mes(planet_radius, star_radius, P, cdpps, baseline).astype(float)
+
+    # calculate recovery function f, Eqn 6 in Zink+22 https://iopscience.iop.org/article/10.3847/1538-3881/ac2309#ajac2309t3
+    recovery_fraction = calculate_recovery_fraction(mes, logistic_a, logistic_k, logistic_l)
+    
+    # the Zink+22 completeness is conditioned on a signal injected into the light curve, so we need to multiply geom_transit_status by the recovery_fraction
+    geom_transit_status = np.where(np.abs(b)<=1., True, False) 
+    #print("K2 geom transit status: ", len(geom_transit_status[geom_transit_status==True])/len(geom_transit_status))
+    recovery_status = [np.random.choice([1, 0], p=[rf, 1-rf]) for rf in recovery_fraction]
+    #print("K2 recovery status: ", recovery_status)
+    transit_status = geom_transit_status * recovery_status
+    #print("K2 transit status: ", len(transit_status[transit_status==True])/len(transit_status), len(transit_status[transit_status==True]), len(transit_status))
+
+    return transit_status, mes, recovery_fraction, geom_transit_status
+
+def kepler_detection(df, angle_flag):
+    """
+    Params: 
+    - df: exploded Pandas DataFrame of K2 planets
+    - angle_flag: True means indexed at 0; False means indexed at pi/2
+
+    Returns:
+    - prob_detections: probabilities of detection; Numpy array
+    - transit_statuses: Numpy array
+    - sn: S/N ratios; Numpy array
+    - geom_transit_status: geometric transit status; Numpy array
+    """
+
+    P = df['periods']
+    cdpps = df['rrmscdpp06p0']
+    star_radius = df['stellar_radius']
+    planet_radius = df['planet_radii']
+    e = df['eccs']
+    mutual_incl = df['mutual_incls']
+    incl = df['incls']
+    omega = df['omegas']
+    star_mass = df['stellar_mass']
+    prob_detections = []
+    transit_statuses = []
+    
+    # reformulate P as a in AU
+    a = simulate_helpers.p_to_a(P, star_mass)
+    
+    # calculate impact parameters; distance units in solar radii
+    b = simulate_helpers.calculate_impact_parameter_vectorized(star_radius, planet_radius, a, e, incl, omega, angle_flag)
+
+    # make sure arrays have explicitly float elements
+    star_radius = star_radius.astype(float)
+    a = a.astype(float)
+    
+    # calculate transit durations using Winn 2011 formula; same units as period
+    tdur = simulate_helpers.calculate_transit_duration_vectorized(P, simulate_helpers.solar_radius_to_au(star_radius), 
+        simulate_helpers.earth_radius_to_au(np.array(planet_radius)), b, a, mutual_incl, e, omega, angle_flag)
+
+    # calculate CDPP by drawing from Kepler dataset relation with star radius
+    #cdpp = [draw_cdpp(sr, berger_kepler) for sr in star_radius]
+    
+    # calculate SN based on Eqn 4 in Christiansen et al 2012
+    sn = np.array(simulate_helpers.calculate_sn_vectorized(P, np.array(planet_radius), star_radius, cdpps, tdur, unit_test_flag=False))
+    sn = sn.astype(float)
+
+    # it's weird that I'm tabulating geometric transits now, but I get free info on it from NaNs in the S/N calculation portion
+    geom_transit_status = np.where(np.isnan(sn), 0, 1)
+
+    # NOW I can fill in NaNs with zeros
+    sn = np.nan_to_num(sn, nan=0.) #sn.fillna(0)
+
+    # calculate Fressin detection probability based on S/N
+    prob_detection = 0.1*(sn-6) # vectorize
+
+    prob_detection = np.where(prob_detection < 0., 0., prob_detection) # replace negative probs with zeros
+    # actually, replace all probabilities under 5% with 5% to avoid over-penalizing models which terminate at 0% too early
+    prob_detection = np.where(prob_detection > 1, 1, prob_detection) # replace probs > 1 with just 1
+    prob_detections.append(prob_detection)
+
+    # sample transit status and multiplicity based on Fressin detection probability
+    #transit_status = [ts1_elt * ts2_elt for ts1_elt, ts2_elt in zip(ts1, ts2)]
+    transit_status = np.array([np.random.choice([1, 0], p=[pd, 1-pd]) for pd in prob_detection])
+    transit_statuses.append(transit_status)
+    
+    #print("Kepler geom transit status: ", len(geom_transit_status[geom_transit_status==1])/len(geom_transit_status))
+    #print("Kepler transit status: ", len(transit_status[transit_status==1])/len(transit_status), len(transit_status[transit_status==1]), len(transit_status))
+
+    return prob_detections, transit_statuses, sn, geom_transit_status
+
+### Kepler completeness map
+def kepler_completeness_map(df):
+    completeness=np.ones(len(df))
+    completeness=np.where((df.periods<5) & (df.planet_radii<=2),0.098338,completeness)
+    completeness=np.where((df.periods<=5) & (df.planet_radii>2),0.102679,completeness)
+    completeness=np.where((df.periods>5) & (df.periods<=10) & (df.planet_radii<=2),0.030385,completeness)
+    completeness=np.where((df.periods>5) & (df.periods<=10) & (df.planet_radii>2),0.060832,completeness)
+    completeness=np.where((df.periods>10) & (df.periods<=20) & (df.planet_radii<=2),0.018433,completeness)
+    completeness=np.where((df.periods>10) & (df.periods<=20) & (df.planet_radii>2),0.031906,completeness)
+    completeness=np.where((df.periods>20) & (df.periods<=30) & (df.planet_radii<=2),0.019417,completeness)
+    completeness=np.where((df.periods>20) & (df.periods<=30) & (df.planet_radii>2),0.017568,completeness)
+    completeness=np.where((df.periods>30) & (df.periods<=40) & (df.planet_radii<=2),np.nan,completeness)
+    completeness=np.where((df.periods>30) & (df.periods<=40) & (df.planet_radii>2),0.013889,completeness)
+
+    return completeness
+
+def k2_reliability_map(df):
+    ### taken from Jon Zink's ExoMult code, with permission from his collaborator, Kevin Hardegree-Ullman
+    reli=np.ones(len(planetK2SupE))
+    reli=np.where(planetK2SupE.Period<5,.99,reli)
+    reli=np.where((planetK2SupE.Period>=5) & (planetK2SupE.Period<10),.94,reli)
+    reli=np.where((planetK2SupE.Period>=10) & (planetK2SupE.Period<20),.86,reli)
+    reli=np.where((planetK2SupE.Period>=20) & (planetK2SupE.Period<30),.87,reli)
+    reli=np.where((planetK2SupE.Period>=30) & (planetK2SupE.Period<40),.75,reli)
+    return reli
+
 ######Calculate MES, from Jon Zink's ExoMULT (https://github.com/jonzink/ExoMult/blob/master/ScalingK2VIII/ExoMult.py)####
 def MES_calc(period, planet_radius, star_radius, cdpp, b, tobs, f0):
 	

@@ -529,7 +529,7 @@ def calculate_impact_parameter(star_radius, a, e, incl, omega, angle_flag): # fo
     
     return factor1 * factor2
 
-def calculate_impact_parameter_vectorized(star_radius, a, e, incl, omega, angle_flag): # following Winn 2010 Eqn 7
+def calculate_impact_parameter_vectorized_old(star_radius, a, e, incl, omega, angle_flag): # following Winn 2010 Eqn 7
     """
     angle_flag: True means indexed at 0; False means indexed at pi/2
     """
@@ -537,12 +537,27 @@ def calculate_impact_parameter_vectorized(star_radius, a, e, incl, omega, angle_
     if angle_flag==True:
         factor1_temp = np.pi/2 - incl
         factor1 = (a * factor1_temp.apply(lambda x: np.cos(x)))/star_radius  # again, we're indexed at 0 rather than pi/2
+        #factor1 = (a.values * np.cos(factor1_temp.values)) / star_radius.values # when indices aren't aligned, this will take the union and lead to NaNs 
     elif angle_flag==False: # if indexed at pi/2
         factor1_temp = incl
         factor1 = (a * factor1_temp.apply(lambda x: np.cos(x)))/star_radius 
     factor2 = (1-e**2)/(1+e*omega.apply(lambda x: np.sin(x))) # leave this alone, right? Bc everyone always assumes omega=pi/2?
     
     return factor1 * factor2
+
+def calculate_impact_parameter_vectorized(star_radius, planet_radius, a, e, incl, omega, angle_flag):
+        star_radius = solar_radius_to_au(star_radius)
+        planet_radius = earth_radius_to_au(planet_radius)
+
+        if angle_flag:
+            incl_term = np.sin(incl.astype(float))
+        else:
+            incl_term = np.cos(incl.astype(float))
+
+        factor1 = (a * incl_term) / (star_radius + planet_radius) 
+        factor2 = (1 - e**2) / (1 + e * np.sin(omega.astype(float)))
+
+        return factor1 * factor2
 
 def calculate_transit_duration_vectorized(P, r_star, r_planet, b, a, inc, e, omega, angle_flag): # Winn 2011s Eqn 14 & 16
     """
@@ -673,6 +688,7 @@ def calculate_sn_vectorized(P, rp, rs, cdpp, tdur, unit_test_flag=False):
 
     #cdpp_eff_old = cdpp * tcdpp/tdur.apply(lambda x: np.sqrt(x))
     cdpp_eff = cdpp * (tcdpp/tdur).apply(lambda x: np.sqrt(x))
+    #cdpp_eff = np.sqrt(tcdpp/tdur.values) * cdpp.values
 
     factor2 = delta/cdpp_eff
     #factor2_old = delta/cdpp_eff_old
@@ -1570,11 +1586,16 @@ def completeness(physical, detected):
     - piv: Pandas pivot table of completeness fractions across period and radius bins
     """
 
-    geom = physical.loc[physical['geom_transit_status']==1]
+    #geom = physical.loc[physical['geom_transit_status']==1]
     #print(geom.loc[((geom['planet_radii'] > 3.667) & (geom['planet_radii'] <= 4) & (geom['periods'] > 3.49) & (geom['periods'] <= 6.09))])
 
-    period_grid = np.logspace(np.log10(1), np.log10(40), 10)
-    radius_grid = np.linspace(1, 4, 10)
+    # old grids
+    #period_grid = np.logspace(np.log10(1), np.log10(40), 10)
+    #radius_grid = np.linspace(1, 4, 10)
+
+    # let's use the reliability map grid from Zink+22 (https://iopscience.iop.org/article/10.3847/1538-3881/ac2309#ajac2309f13), for parallelism
+    period_grid = np.array([0.5, 5, 10, 20, 30, 40])
+    radius_grid = np.array([0, 2, 4]) 
 
     # physical occurrence map
     df_physical = physical[['periods', 'planet_radii']]

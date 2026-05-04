@@ -94,7 +94,7 @@ class Population:
                 df['prob_intact']>1, 1, df['prob_intact']))
                 
         return df
-
+      
     def galactic_occurrence_step(self, threshold, frac1, frac2):
         """
         Calculate the probability of system having planets, based on its age and three free parameters

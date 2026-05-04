@@ -19,6 +19,7 @@ from ast import literal_eval
 import seaborn as sns
 from glob import glob
 from tqdm import tqdm
+from scipy.stats import truncnorm
 
 from itertools import zip_longest
 import numpy.ma as ma # for masked arrays
@@ -89,15 +90,20 @@ logistic_l = [11.3914, 10.8544, 10.5701, 11.1443, 11.3923, 10.8772, 11.7002, 10.
 k2_pointings = pd.DataFrame(dict({'Campaign': campaigns, 'ra': ras, 'dec': decs, 'b': bs, 'baseline': baselines, 'logistic_a': logistic_a, 'logistic_k': logistic_k, 'logistic_l': logistic_l}))
 
 # for each model, draw around stellar age errors 10 times
-for j in tqdm(range(5)): 
+for j in tqdm(range(30)): 
 
     temp_df = hu25_b20_kepler_b25_k2_kepmag.copy() # copy the original DataFrame to avoid modifying it in place during each iteration
 
     # draw stellar radius, mass, and age using asymmetric errors 
-    temp_df['stellar_radius'] = np.random.normal(temp_df['Rad'], temp_df['e_Rad'])
+    a, b = (0 - temp_df['Rad']) / temp_df['e_Rad'], np.inf
+    temp_df['stellar_radius'] = truncnorm.rvs(a, b, loc=temp_df['Rad'], scale=temp_df['e_Rad'], size=len(temp_df)) # to avoid negative masses
     temp_df = simulate_helpers.draw_asymmetrically(temp_df, 'age', 'age_err1', 'age_err2', 'age') # use this bc the psps version uses the same name as our input column
-    temp_df['stellar_mass'] = np.random.normal(temp_df['Mass'], temp_df['e_Mass'])
-    temp_df['teff_drawn'] = np.random.normal(temp_df['Teff'], temp_df['e_Teff'])
+    
+    a, b = (0 - temp_df['Mass']) / temp_df['e_Mass'], np.inf
+    temp_df['stellar_mass'] = truncnorm.rvs(a, b, loc=temp_df['Mass'], scale=temp_df['e_Mass'], size=len(temp_df)) # to avoid negative masses
+    
+    a, b = (0 - temp_df['Teff']) / temp_df['e_Teff'], np.inf
+    temp_df['teff_drawn'] = truncnorm.rvs(a, b, loc=temp_df['Teff'], scale=temp_df['e_Teff'], size=len(temp_df))
 
     temp_df['kepler_or_k2'] = np.where(temp_df['Kepler_ID'] > 0, 'Kepler', 'K2')
     temp_kepler = temp_df.loc[temp_df['kepler_or_k2']=='Kepler']
@@ -247,4 +253,4 @@ for j in tqdm(range(5)):
     #f = len(berger_kepler_planets)/len(berger_kepler_all)
     #print("f: ", f)
 
-    berger_kepler_all.to_csv(path+'data/joint/stellar_samples/'+name+'/'+name+'_'+str(j)+'.csv')
+    berger_kepler_all.to_csv(path+'data/joint/stellar_samples/'+name+'/'+name+'_'+str(j)+'.csv', index=False)
