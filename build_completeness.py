@@ -31,8 +31,12 @@ period_grid = np.logspace(np.log10(3), np.log10(40), 10)
 radius_grid = np.linspace(1.2, 4, 10)
 period_grid_k2 = np.array([0.5, 5, 10, 20, 30, 40])
 radius_grid_k2 = np.array([0,2,4])
+period_grid_k2 = np.logspace(np.log10(3), np.log10(40), 10)
+radius_grid_k2 = np.linspace(1.2, 4, 10)
 # also height grid
 height_bins = np.logspace(2, 3, 6) 
+age_bins = np.linspace(1, 8, 7)
+#height_bins = np.logspace(2, 3, 11) 
 
 # draw eccentricities using Van Eylen+ 2019
 model_flag = 'rayleigh'
@@ -89,9 +93,9 @@ temp_df['teff_drawn'] = np.random.normal(temp_df['Teff'], temp_df['e_Teff'])
 temp_df = simulate_helpers.draw_asymmetrically(temp_df, 'age', 'age_err1', 'age_err2', 'age')
 
 # split between Kepler and K2
-temp_kepler = temp_df.loc[temp_df['Kepler_ID']>0]
-temp_k2 = temp_df.loc[temp_df['EPIC_ID']>0]
-temp_k2 = pd.merge(temp_k2, k2_pointings[['Campaign','baseline','logistic_a','logistic_k','logistic_l']], on='Campaign', how='left')
+#temp_kepler = temp_df.loc[temp_df['Kepler_ID']>0]
+#temp_k2 = temp_df.loc[temp_df['EPIC_ID']>0]
+#temp_k2 = pd.merge(temp_k2, k2_pointings[['Campaign','baseline','logistic_a','logistic_k','logistic_l']], on='Campaign', how='left')
 
 # plt.hist(temp_k2['height'], bins=height_bins, density=True, alpha=0.5, label='K2')
 # plt.hist(temp_kepler['height'], bins=height_bins, density=True, alpha=0.5, label='Kepler')
@@ -100,8 +104,8 @@ temp_k2 = pd.merge(temp_k2, k2_pointings[['Campaign','baseline','logistic_a','lo
 # plt.show()
 
 # use the same 100 stars for each {p, r} draw, per mission
-temp_kepler = temp_kepler.sample(n=100).reset_index()
-temp_k2 = temp_k2.sample(n=100).reset_index()
+#temp_kepler = temp_kepler.sample(n=100).reset_index()
+#temp_k2 = temp_k2.sample(n=100).reset_index()
 #plt.hist(temp_kepler['teff_drawn'])
 #plt.hist(temp_k2['teff_drawn'])
 #plt.show()
@@ -114,10 +118,10 @@ incl = pd.Series(np.zeros(100))
 omega = pd.Series(np.zeros(100))
 angle_flag = True
 #k2_sensitivity = np.zeros((len(period_grid), len(radius_grid)))
-kepler_sensitivity = np.zeros((len(period_grid), len(radius_grid)))
+kepler_sensitivity = np.zeros((len(period_grid[1:]), len(radius_grid[1:])))
 """
-for i, p in enumerate(period_grid):
-	for j, r in enumerate(radius_grid):
+for i, p in enumerate(period_grid[1:]):
+	for j, r in enumerate(radius_grid[1:]):
 		### guess I don't have to actually make planet and can go straight to planet detection, since all planet parameters are on rails for this exercise
 
 		### Kepler
@@ -148,9 +152,9 @@ for i, p in enumerate(period_grid):
 		kepler_sensitivity[i, j] = len(transit_status[transit_status==1])/100.
 		#print(p, r, len(transit_status[transit_status==1])/100.) # verify which corner to start with when I read in maps
 
-k2_sensitivity = np.zeros((len(period_grid_k2), len(radius_grid_k2)))
-for i, p in enumerate(period_grid_k2):
-	for j, r in enumerate(radius_grid_k2):
+k2_sensitivity = np.zeros((len(period_grid_k2[1:]), len(radius_grid_k2[1:])))
+for i, p in enumerate(period_grid_k2[1:]):
+	for j, r in enumerate(radius_grid_k2[1:]):
 		### K2
 		# calculate SN based on MES, Eqn 5 in Zink+22 https://iopscience.iop.org/article/10.3847/1538-3881/ac2309#ajac2309t3
 		mes =  simulate_transit.calculate_mes(r, temp_k2['stellar_radius'], p, temp_k2['CDPP6'], temp_k2['baseline']).astype(float)
@@ -164,6 +168,7 @@ for i, p in enumerate(period_grid_k2):
 
 np.save(path+'data/joint/kepler_sensitivity.npy', kepler_sensitivity)
 np.save(path+'data/joint/k2_sensitivity.npy', k2_sensitivity)
+quit()
 """
 
 ### Cool, but that's for stars agnostic of Zmax. If I want to do occurrence rates as a function of Zmax, I need to get different completeness per Zmax bin. 
@@ -185,49 +190,51 @@ k2_sensitivity_list = []
 kepler_sensitivity_height_list = []
 k2_sensitivity_height_list = []
 for i, h in enumerate(height_bins[:-1]):	
-
-	# split between Kepler and K2. keep at most 100 stars (but this won't be possible for most height bins for K2)
+	# split between Kepler and K2. 
 	temp_kepler = temp_df.loc[temp_df['Kepler_ID']>0]
-	temp_kepler = temp_kepler.sample(n=100).reset_index()
-
 	temp_k2 = temp_df.loc[temp_df['EPIC_ID']>0]
-	temp_k2 = pd.merge(temp_k2, k2_pointings[['Campaign','baseline','logistic_a','logistic_k','logistic_l']], on='Campaign', how='left')
-	try:
-		temp_k2 = temp_k2.sample(n=100).reset_index()
-	except ValueError:
-		temp_k2 = temp_k2.reset_index() 
 
 	# isolate height bin
 	temp_kepler_bin = temp_kepler.loc[temp_kepler['height_bin']==i]
 	temp_k2_bin = temp_k2.loc[temp_k2['height_bin']==i]
+	#print(np.nanmean(temp_kepler_bin['CDPP6']))
+	#print(np.nanmean(temp_k2_bin['CDPP6']))
 
-	e = pd.Series(np.zeros(100))
-	incl = pd.Series(np.zeros(100))
-	omega = pd.Series(np.zeros(100))
+	# keep at most 100 (or 1000) stars (but this won't be possible for most height bins for K2)
+	try:
+		temp_kepler_bin = temp_kepler_bin.sample(n=1000).reset_index()
+	except ValueError:
+		temp_kepler_bin = temp_kepler_bin.reset_index()
+	try:
+		temp_k2_bin = temp_k2_bin.sample(n=1000).reset_index()
+	except ValueError:
+		temp_k2_bin = temp_k2_bin.reset_index() 
+	temp_k2_bin = pd.merge(temp_k2_bin, k2_pointings[['Campaign','baseline','logistic_a','logistic_k','logistic_l']], on='Campaign', how='left')
+
 	angle_flag = True
-	k2_sensitivity = np.zeros((len(period_grid_k2), len(radius_grid_k2)))
-	kepler_sensitivity = np.zeros((len(period_grid), len(radius_grid)))
+	k2_sensitivity = np.zeros((len(period_grid_k2[1:]), len(radius_grid_k2[1:])))
+	kepler_sensitivity = np.zeros((len(period_grid[1:]), len(radius_grid[1:])))
 	k2_sensitivity_height = np.zeros(len(height_bins)-1)
 	kepler_sensitivity_height = np.zeros(len(height_bins)-1)
 
 	print("height: ", height_bins[i], "Kepler: ", len(temp_kepler_bin), "K2: ", len(temp_k2_bin))
-	for j, p in enumerate(period_grid):
-		for k, r in enumerate(radius_grid):
+	for j, p in enumerate(period_grid[:-1]):
+		for k, r in enumerate(radius_grid[:-1]):
 			### Kepler sensitivity
 			# calculate semi-major axis
-			a = simulate_helpers.p_to_a(p, temp_kepler['stellar_mass'])
+			a = simulate_helpers.p_to_a(p, temp_kepler_bin['stellar_mass'])
 
 			# calculate impact parameters; distance units in solar radii
-			b = simulate_helpers.calculate_impact_parameter_vectorized(temp_kepler['stellar_radius'], r, a, pd.Series(np.zeros(len(temp_kepler))), pd.Series(np.zeros(len(temp_kepler))), pd.Series(np.zeros(len(temp_kepler))), angle_flag)
+			b = simulate_helpers.calculate_impact_parameter_vectorized(temp_kepler_bin['stellar_radius'], r, a, pd.Series(np.zeros(len(temp_kepler_bin))), pd.Series(np.zeros(len(temp_kepler_bin))), pd.Series(np.zeros(len(temp_kepler_bin))), angle_flag)
 			
 			# transit duration
-			tdur = simulate_helpers.calculate_transit_duration_vectorized(p, simulate_helpers.solar_radius_to_au(temp_kepler['stellar_radius']), simulate_helpers.earth_radius_to_au(r), b, a, pd.Series(np.zeros(len(temp_kepler))), pd.Series(np.zeros(len(temp_kepler))), pd.Series(np.zeros(len(temp_kepler))), angle_flag)
+			tdur = simulate_helpers.calculate_transit_duration_vectorized(p, simulate_helpers.solar_radius_to_au(temp_kepler_bin['stellar_radius']), simulate_helpers.earth_radius_to_au(r), b, a, pd.Series(np.zeros(len(temp_kepler_bin))), pd.Series(np.zeros(len(temp_kepler_bin))), pd.Series(np.zeros(len(temp_kepler_bin))), angle_flag)
 
 			# calculate SN based on Eqn 4 in Christiansen et al 2012
-			sn = np.array(simulate_helpers.calculate_sn_vectorized(pd.Series(p*np.ones(len(temp_kepler))), pd.Series(r*np.ones(len(temp_kepler))), temp_kepler['stellar_radius'], temp_kepler['CDPP6'], tdur, unit_test_flag=False))
+			sn = np.array(simulate_helpers.calculate_sn_vectorized(pd.Series(p*np.ones(len(temp_kepler_bin))), pd.Series(r*np.ones(len(temp_kepler_bin))), temp_kepler_bin['stellar_radius'], temp_kepler_bin['CDPP6'], tdur, unit_test_flag=False))
 			sn = sn.astype(float)
 
-			# NOW I can fill in NaNs with zeros
+			# fill in NaNs with zeros
 			sn = np.nan_to_num(sn, nan=0.) #sn.fillna(0)
 
 			# calculate Fressin detection probability based on S/N (Fressin+13 Fig 2: https://iopscience.iop.org/article/10.1088/0004-637X/766/2/81#apj460761f1)
@@ -237,21 +244,19 @@ for i, h in enumerate(height_bins[:-1]):
 
 			# sample transit status and multiplicity based on Fressin detection probability
 			transit_status = np.array([np.random.choice([1, 0], p=[pd, 1-pd]) for pd in prob_detection])
-			kepler_sensitivity[j, k] = len(transit_status[transit_status==1])/100.
+			kepler_sensitivity[j, k] = len(transit_status[transit_status==1])/len(temp_kepler_bin)
 
-			### Kepler geometric completeness and detection completeness
-
-	for j, p in enumerate(period_grid_k2):
-		for k, r in enumerate(radius_grid_k2):
+	for j, p in enumerate(period_grid_k2[:-1]):
+		for k, r in enumerate(radius_grid_k2[:-1]):
 			### K2
 			# calculate SN based on MES, Eqn 5 in Zink+22 https://iopscience.iop.org/article/10.3847/1538-3881/ac2309#ajac2309t3
-			mes =  simulate_transit.calculate_mes(r, temp_k2['stellar_radius'], p, temp_k2['CDPP6'], temp_k2['baseline']).astype(float)
+			mes =  simulate_transit.calculate_mes(r, temp_k2_bin['stellar_radius'], p, temp_k2_bin['CDPP6'], temp_k2_bin['baseline']).astype(float)
 
 			# calculate recovery function f, Eqn 6 in Zink+22 https://iopscience.iop.org/article/10.3847/1538-3881/ac2309#ajac2309t3
-			recovery_fraction = simulate_transit.calculate_recovery_fraction(mes, temp_k2['logistic_a'], temp_k2['logistic_k'], temp_k2['logistic_l'])
+			recovery_fraction = simulate_transit.calculate_recovery_fraction(mes, temp_k2_bin['logistic_a'], temp_k2_bin['logistic_k'], temp_k2_bin['logistic_l'])
 			
 			recovery_status = np.array([np.random.choice([1, 0], p=[rf, 1-rf]) for rf in recovery_fraction])
-			k2_sensitivity[j, k] = len(recovery_status[recovery_status==1])/100.
+			k2_sensitivity[j, k] = len(recovery_status[recovery_status==1])/len(temp_k2_bin)
 
 	print("Kepler sensitivity for height bin ", i, ": ", kepler_sensitivity)
 	print("K2 sensitivity for height bin ", i, ": ", k2_sensitivity)
@@ -264,8 +269,7 @@ for i, h in enumerate(height_bins[:-1]):
 	kepler_sensitivity_height_list.append(kepler_sensitivity_height)
 	k2_sensitivity_height_list.append(k2_sensitivity_height)
 
-np.save(path+'data/joint/kepler_sensitivity_list.npy', kepler_sensitivity_list)
+np.save(path+'data/joint/kepler_sensitivity_list.npy', kepler_sensitivity_list) # kepler_sensitivity_list_ten.npy
 np.save(path+'data/joint/k2_sensitivity_list.npy', k2_sensitivity_list)
-
 print("Kepler sensitivity height-wise: ", kepler_sensitivity_height_list) # np.array([0.932, 0.928, 0.935, 0.933, 0.934])
 print("K2 sensitivity height-wise: ", k2_sensitivity_height_list) # np.array([0.306, 0.296, 0.293, 0.284, 0.277])

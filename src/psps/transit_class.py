@@ -346,7 +346,8 @@ class GeneralStar:
         self.logistic_k = logistic_k
         self.logistic_l = logistic_l
 
-        self.midplane = np.random.uniform(low=-np.pi/2, high=np.pi/2)
+        #self.midplane = np.random.uniform(low=-np.pi/2, high=np.pi/2) # this is wrong! isotropic inclinations requires uniformity in cos i space, not i!
+        self.midplane = np.arcsin(np.random.uniform(low=-1, high=1)) # using arcsin instead of arccos bc of my chosen convention
 
         # prescription for planet-making
         #prob_intact = 0.18 + 0.1 * jax.random.truncated_normal(key=subkey, lower=0, upper=1) # from Lam & Ballard 2024; out of planet hosts
@@ -446,8 +447,8 @@ class Star:
         #self.kepid = np.array(kepid)
         #print(self.kepid, self.stellar_radius, self.stellar_mass, self.rrmscdpp06p0, self.height)
 
-        #self.midplane = jax.random.uniform(key, minval=-np.pi/2, maxval=np.pi/2)
-        self.midplane = np.random.uniform(low=-np.pi/2, high=np.pi/2) # JAX, but I need to figure out how to properly randomly draw
+        #self.midplane = np.random.uniform(low=-np.pi/2, high=np.pi/2) # this is wrong! isotropic inclinations requires uniformity in cos i space, not i!
+        self.midplane = np.arcsin(np.random.uniform(low=-1, high=1)) # using arcsin instead of arccos bc of my chosen convention
 
         # prescription for planet-making
         #prob_intact = 0.18 + 0.1 * jax.random.truncated_normal(key=subkey, lower=0, upper=1) # from Lam & Ballard 2024; out of planet hosts
@@ -586,8 +587,8 @@ class K2Star:
         self.logistic_l = logistic_l
         #print(self.EPIC, self.stellar_radius, self.stellar_mass, self.rrmscdpp06p0, self.height)
 
-        #self.midplane = jax.random.uniform(key, minval=-np.pi/2, maxval=np.pi/2)
-        self.midplane = np.random.uniform(low=-np.pi/2, high=np.pi/2) # JAX, but I need to figure out how to properly randomly draw
+        #self.midplane = np.random.uniform(low=-np.pi/2, high=np.pi/2) # this is wrong! isotropic inclinations requires uniformity in cos i space, not i!
+        self.midplane = np.arcsin(np.random.uniform(low=-1, high=1)) # using arcsin instead of arccos bc of my chosen convention
 
         # prescription for planet-making
         #prob_intact = 0.18 + 0.1 * jax.random.truncated_normal(key=subkey, lower=0, upper=1) # from Lam & Ballard 2024; out of planet hosts
@@ -620,6 +621,7 @@ class K2Star:
             mu = self.midplane
             sigma = self.sigma_incl
             self.incls = np.random.normal(loc=mu, scale=sigma, size=self.num_planets)
+            #self.incls = np.arcsin(np.random.uniform(low=-1, high=1) + ) np.random.normal(loc=mu, scale=sigma, size=self.num_planets)
             
             # obtain mutual inclinations for plotting to compare {e, i} distributions
             self.mutual_incls = self.midplane - self.incls
@@ -676,3 +678,255 @@ class NpEncoder(json.JSONEncoder):
             return obj.tolist()
         return super(NpEncoder, self).default(obj)
 
+
+class StarZ23:
+    """
+
+    Functions that make planetary systems, at the per-star level
+
+    Attributes, first four from Berger+ 2020 sample:
+    #- kepid: Kepler identifier
+    - GaiaDR3: Gaia DR3 source_id
+    - age: drawn stellar age, in Gyr
+    - stellar_radius: drawn stellar radius, in Solar radii
+    - stellar_mass: drawn stellar mass, in Solar masses
+    - rrmscdpp06p0: 6-hr-window CDPP noise [ppm]
+    - height: galactic scale height [pc]
+    - alpha_se: power law exponent for Super-Earth radii
+    - alpha_sn: power law exponent for Sub-Neptune radii
+    - frac_host: calculated fraction of planet hosts, defaults to Zhu+20 but can be tunable 
+    - prob_intact: probability of being dynamically cool; defaults to Lam+24 probability, but can be tunable
+    - kepid: default to None, unless user provides Kepler IDs
+
+    Output:
+    - Star object, which is populated by Planets
+
+    """
+
+    def __init__(
+        self, age, stellar_radius, stellar_mass, Teff, rrmscdpp06p0, height, alpha_se, alpha_sn, beta1_se, beta1_sn, beta2_se, beta2_sn, pbr_se, pbr_sn, frac_host, prob_intact, GaiaDR3=None, Kepler_ID=None, **kwargs 
+    ):
+        self.GaiaDR3 = GaiaDR3
+        self.Kepler_ID = Kepler_ID
+        self.age = age
+        self.stellar_radius = np.array(stellar_radius)
+        self.stellar_mass = np.array(stellar_mass)
+        self.Teff = np.array(Teff)
+        self.rrmscdpp06p0 = np.array(rrmscdpp06p0)
+        self.frac_host = frac_host
+        self.height = np.array(height)
+        self.alpha_se = alpha_se
+        self.alpha_sn = alpha_sn
+        self.beta1_se = beta1_se
+        self.beta1_sn = beta1_sn
+        self.beta2_se = beta2_se
+        self.beta2_sn = beta2_sn
+        self.pbr_se = pbr_se
+        self.pbr_sn = pbr_sn
+        #self.kepid = np.array(kepid)
+        #print(self.kepid, self.stellar_radius, self.stellar_mass, self.rrmscdpp06p0, self.height)
+
+        #self.midplane = np.random.uniform(low=-np.pi/2, high=np.pi/2) # this is wrong! isotropic inclinations requires uniformity in cos i space, not i!
+        self.midplane = np.arcsin(np.random.uniform(low=-1, high=1)) # using arcsin instead of arccos bc of my chosen convention
+
+        # prescription for planet-making
+        #prob_intact = 0.18 + 0.1 * jax.random.truncated_normal(key=subkey, lower=0, upper=1) # from Lam & Ballard 2024; out of planet hosts
+        #self.prob_intact = scipy.stats.truncnorm.rvs(0, 1, loc=0.18, scale=0.1)  # np vs JAX bc of random key issues
+        self.prob_intact = prob_intact
+
+        p = simulate_helpers.assign_status(self.frac_host, self.prob_intact)
+        self.status = np.random.choice(['no-planet', 'intact', 'disrupted'], p=p)
+        #self.intact_flag = assign_flag(key, self.prob_intact, self.frac_host)
+
+        # assign system-level inclination spread based on intact flag
+        #self.sigma_incl = jnp.where(self.status=='intact', jnp.pi/90, jnp.pi/22.5) # no-planets will also have disrupted spread; need to figure out nested wheres in JAX
+        self.sigma_incl = np.where(self.status=='intact', np.pi/90, np.pi/22.5) # numpy version of above
+
+        # assign number of planets per system based on intact flag
+        self.num_planets = simulate_helpers.assign_num_planets(self.status)
+
+        """
+        # populate the Planets here upon initialization
+        for i in range(self.num_planets):
+            planet = Planet(self.midplane, self.intact_flag, self.sigma_incl)
+            self.planets.append(planet)
+        """
+        if self.num_planets!=None:
+
+            ### draw planet radii and periods such that they satisfy a Hill radius check and satisfy population statistics of radius valley. also draw planet masses.
+            self.periods, self.planet_radii, self.planet_masses, self.se_or_sn = simulate_helpers.draw_planet_periods_and_radii_z23(self.num_planets, self.alpha_se, self.alpha_sn, self.beta1_se, self.beta1_sn, self.beta2_se, self.beta2_sn, self.pbr_se, self.pbr_sn, self.stellar_mass)
+
+            # draw inclinations from Gaussian distribution centered on midplane (invariable plane)        
+            mu = self.midplane
+            sigma = self.sigma_incl
+            #self.incls = mu + sigma * jax.random.normal(key, shape=(self.num_planets,)) # JAX, but I need to figure out how to properly randomly draw
+            self.incls = np.random.normal(loc=mu, scale=sigma, size=self.num_planets)
+            
+            # obtain mutual inclinations for plotting to compare {e, i} distributions
+            self.mutual_incls = self.midplane - self.incls
+
+            # draw eccentricity
+            if (model_flag=='limbach-hybrid') | (model_flag=='limbach'):
+                # for drawing eccentricities using Limbach & Turner 2014 CDFs relating e to multiplicity
+                #limbach = pd.read_csv(input_path+'limbach_cdfs.txt', engine='python', header=0, sep='\s{2,20}') # space-agnostic separator
+                limbach = pd.read_csv(path+'data/limbach_cdfs.txt', engine='python', header=0, sep='\s{2,20}') # space-agnostic separator
+                self.eccs = simulate_helpers.draw_eccentricity_van_eylen_vectorized(model_flag, self.num_planets, limbach)
+            else:
+                self.eccs = simulate_helpers.draw_eccentricity_van_eylen_vectorized(model_flag, self.num_planets)
+
+            # draw longitudes of periastron
+            #self.omegas = jax.random.uniform(key, shape=(self.num_planets,), minval=0, maxval=2*jnp.pi) # JAX, but I need to figure out how to properly randomly draw
+            self.omegas = np.random.uniform(low=0, high=2*np.pi, size=self.num_planets)
+
+            # turn to comma-delimited lists for ease of reading in later
+            self.incls = self.incls.tolist()
+            self.periods = self.periods.tolist()
+            self.planet_radii = self.planet_radii.tolist()
+            self.mutual_incls = self.mutual_incls.tolist()
+            self.eccs = self.eccs.tolist()
+            self.omegas = self.omegas.tolist()
+            self.planet_masses = self.planet_masses.tolist()
+            
+        else:
+            self.periods = None
+            self.planet_radii = None
+            self.incls = None
+            self.mutual_incls = None
+            self.eccs = None
+            self.omegas = None
+            self.planet_masses = None
+            self.se_or_sn = None
+
+    def assign_num_planets(x):
+        """
+        Based on the status (no planet, dynamically cool, dynamically hot), assign the number of planets
+
+        Input:
+        - status: output of assign_status [str]
+        
+        Output:
+        - num_planet: number of planets in the system [int]
+
+        """
+
+        if x=='intact':
+            return jax.random.choice([5, 6])
+        elif x=='disrupted':
+            return jax.random.choice([1, 2])
+        elif x=='no-planets':
+            return 0
+
+
+class K2StarZ23:
+    """
+
+    Instantiate a K2 star
+
+    - age: drawn stellar age, in Gyr
+    - stellar_radius: drawn stellar radius, in Solar radii
+    - stellar_mass: drawn stellar mass, in Solar masses
+    - rrmscdpp06p0: 6-hr-window CDPP noise [ppm]
+    - height: galactic scale height [pc]
+    - alpha_se: power law exponent for Super-Earth radii
+    - alpha_sn: power law exponent for Sub-Neptune radii
+    - frac_host: calculated fraction of planet hosts, defaults to Zhu+20 but can be tunable 
+    - prob_intact: probability of being dynamically cool; defaults to Lam+24 probability, but can be tunable
+    - campaign: K2 field [str]
+    - baseline: K2 field baseline [days]
+    - EPIC: K2 Ecliptic Plane Input Catalog identifier
+
+    Output:
+    - Star object, which is populated by Planets
+
+    """
+
+    def __init__(
+        self, age, stellar_radius, stellar_mass, Teff, rrmscdpp06p0, height, alpha_se, alpha_sn, beta1_se, beta1_sn, beta2_se, beta2_sn, pbr_se, pbr_sn, frac_host, prob_intact, campaign, baseline, GaiaDR3=None, EPIC_ID=None, logistic_a=0.6095, logistic_k=0.6088, logistic_l=10.8986, **kwargs 
+    ):
+        self.EPIC_ID = EPIC_ID
+        self.GaiaDR3 = GaiaDR3
+        self.age = age
+        self.stellar_radius = np.array(stellar_radius)
+        self.stellar_mass = np.array(stellar_mass)
+        self.Teff = np.array(Teff)
+        self.rrmscdpp06p0 = np.array(rrmscdpp06p0)
+        self.frac_host = frac_host
+        self.height = np.array(height)
+        self.alpha_se = alpha_se
+        self.alpha_sn = alpha_sn
+        self.beta1_se = beta1_se
+        self.beta1_sn = beta1_sn
+        self.beta2_se = beta2_se
+        self.beta2_sn = beta2_sn
+        self.pbr_se = pbr_se
+        self.pbr_sn = pbr_sn
+        self.campaign = campaign
+        self.baseline = baseline
+        self.logistic_a = logistic_a
+        self.logistic_k = logistic_k
+        self.logistic_l = logistic_l
+        #print(self.EPIC, self.stellar_radius, self.stellar_mass, self.rrmscdpp06p0, self.height)
+
+        #self.midplane = np.random.uniform(low=-np.pi/2, high=np.pi/2) # this is wrong! isotropic inclinations requires uniformity in cos i space, not i!
+        self.midplane = np.arcsin(np.random.uniform(low=-1, high=1)) # using arcsin instead of arccos bc of my chosen convention
+
+        # prescription for planet-making
+        #prob_intact = 0.18 + 0.1 * jax.random.truncated_normal(key=subkey, lower=0, upper=1) # from Lam & Ballard 2024; out of planet hosts
+        #self.prob_intact = scipy.stats.truncnorm.rvs(0, 1, loc=0.18, scale=0.1)  # np vs JAX bc of random key issues
+        self.prob_intact = prob_intact
+
+        p = simulate_helpers.assign_status(self.frac_host, self.prob_intact)
+        self.status = np.random.choice(['no-planet', 'intact', 'disrupted'], p=p)
+        #self.intact_flag = assign_flag(key, self.prob_intact, self.frac_host)
+
+        # assign system-level inclination spread based on intact flag
+        #self.sigma_incl = jnp.where(self.status=='intact', jnp.pi/90, jnp.pi/22.5) # no-planets will also have disrupted spread; need to figure out nested wheres in JAX
+        self.sigma_incl = np.where(self.status=='intact', np.pi/90, np.pi/22.5) # numpy version of above
+
+        # assign number of planets per system based on intact flag
+        self.num_planets = simulate_helpers.assign_num_planets(self.status)
+
+        """
+        # populate the Planets here upon initialization
+        for i in range(self.num_planets):
+            planet = Planet(self.midplane, self.intact_flag, self.sigma_incl)
+            self.planets.append(planet)
+        """
+        if self.num_planets!=None:
+
+            ### draw planet radii and periods such that they satisfy a Hill radius check and satisfy population statistics of radius valley. also draw planet masses.
+            self.periods, self.planet_radii, self.planet_masses, self.se_or_sn = simulate_helpers.draw_planet_periods_and_radii_z23(self.num_planets, self.alpha_se, self.alpha_sn, self.beta1_se, self.beta1_sn, self.beta2_se, self.beta2_sn, self.pbr_se, self.pbr_sn, self.stellar_mass)
+
+            # draw inclinations from Gaussian distribution centered on midplane (invariable plane)        
+            mu = self.midplane
+            sigma = self.sigma_incl
+            self.incls = np.random.normal(loc=mu, scale=sigma, size=self.num_planets)
+            #self.incls = np.arcsin(np.random.uniform(low=-1, high=1) + ) np.random.normal(loc=mu, scale=sigma, size=self.num_planets)
+            
+            # obtain mutual inclinations for plotting to compare {e, i} distributions
+            self.mutual_incls = self.midplane - self.incls
+
+            # draw eccentricity
+            self.eccs = simulate_helpers.draw_eccentricity_van_eylen_vectorized(model_flag, self.num_planets)
+
+            # draw longitudes of periastron
+            self.omegas = np.random.uniform(low=0, high=2*np.pi, size=self.num_planets)
+
+            # turn to comma-delimited lists for ease of reading in later
+            self.incls = self.incls.tolist()
+            self.periods = self.periods.tolist()
+            self.planet_radii = self.planet_radii.tolist()
+            self.mutual_incls = self.mutual_incls.tolist()
+            self.eccs = self.eccs.tolist()
+            self.omegas = self.omegas.tolist()
+            self.planet_masses = self.planet_masses.tolist()
+            
+        else:
+            self.periods = None
+            self.planet_radii = None
+            self.incls = None
+            self.mutual_incls = None
+            self.eccs = None
+            self.omegas = None
+            self.planet_masses = None
+            self.se_or_sn = None

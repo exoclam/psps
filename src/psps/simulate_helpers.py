@@ -1036,9 +1036,11 @@ def draw_asymmetrically(df, mode_name, err1_name, err2_name, drawn):
     """
 
     # in case df is broken up by planet and not star
-    uniques = df.drop_duplicates(subset=['kepid'])
+    #uniques = df.drop_duplicates(subset=['kepid'])
     
     if drawn=='age':
+        x = np.linspace(0.5, 13.5, 100)
+    elif drawn=='age_drawn':
         x = np.linspace(0.5, 13.5, 100)
     elif drawn=='gyro_age':
         x = np.linspace(0.5, 4., 100)
@@ -1067,16 +1069,16 @@ def draw_asymmetrically(df, mode_name, err1_name, err2_name, drawn):
     print("draw: ", draw)
     """
 
-    if drawn=='planet_radius':
-        df_or_uniques = df
-    else:
-        df_or_uniques = uniques
+    # if drawn=='planet_radius':
+    #     df_or_uniques = df
+    # else:
+    #     df_or_uniques = uniques
 
-    draws = np.ones(len(df_or_uniques))
-    for i in range(len(df_or_uniques)):
-        mode = df_or_uniques.iloc[i][mode_name]
-        err1 = df_or_uniques.iloc[i][err1_name]
-        err2 = np.abs(df_or_uniques.iloc[i][err2_name])
+    draws = np.ones(len(df))
+    for i in range(len(df)):
+        mode = df.iloc[i][mode_name]
+        err1 = df.iloc[i][err1_name]
+        err2 = np.abs(df.iloc[i][err2_name])
         
         #"""
         # symmetric uncertainties
@@ -1120,11 +1122,11 @@ def draw_asymmetrically(df, mode_name, err1_name, err2_name, drawn):
         draws[i] = draw
 
     #print(len(df), len(draws), len(uniques))
-    df_or_uniques[drawn] = draws
+    df[drawn] = draws
 
     # break back out into planet rows and forward fill across systems
-    df = uniques.merge(df, how='right')
-    df[drawn] = df[drawn].fillna(method='ffill')
+    #df = uniques.merge(df, how='right')
+    #df[drawn] = df[drawn].fillna(method='ffill')
     
     return df
 
@@ -1273,6 +1275,51 @@ def draw_planet_periods_and_radii(num_planets, alpha_se, alpha_sn, m_star):
 
     return periods, planet_radii, planet_masses, se_or_sn
 
+def draw_planet_periods_and_radii_z23(num_planets, alpha_se, alpha_sn, beta1_se, beta1_sn, beta2_se, beta2_sn, pbr_se, pbr_sn, m_star):
+
+    se_or_sn = np.random.choice(['se','sn'], size=num_planets, p=[0.5, 0.5])
+    planet_radii = []
+    periods = []
+    for i in se_or_sn:
+        if i=='se':
+            planet_radius = sample_powerlaw(1, 1.2, 2, alpha_se)
+            period = sample_broken_powerlaw(1, 1, 300, pbr_se, beta1_se, beta2_se)
+        elif i=='sn':
+            planet_radius = sample_powerlaw(1, 1.2, 2, alpha_sn)
+            period = sample_broken_powerlaw(1, 1, 300, pbr_sn, beta1_sn, beta2_sn)
+        planet_radii.append(planet_radius)
+        periods.append(period)
+    planet_radii = np.concatenate([x.ravel() for x in planet_radii])
+    periods = np.concatenate([x.ravel() for x in periods])
+
+    # draw planet masses using Forecaster (Chen & Kipping 2016: https://iopscience.iop.org/article/10.3847/1538-4357/834/1/17)
+    # code from Ben Cassese: https://github.com/ben-cassese/astro-forecaster 
+    planet_masses = forecaster.Rpost2M(planet_radii,
+                                unit='Earth',
+                                classify=False)
+
+    # alpha_se_kepler = np.random.normal(-1.0, 0.2)
+    # alpha_se_k2 = np.random.normal(-1.9, 0.7)
+    # alpha_sn_kepler = np.random.normal(-1.5, 0.1)
+    # alpha_sn_k2 = np.random.normal(-2., 0.3)
+
+    # beta1_se_kepler = np.random.normal(1.9, 0.3)
+    # beta1_se_k2 = np.random.normal(1.7, 0.4)
+    # beta1_sn_kepler = np.random.normal(2.6, 0.5)
+    # beta1_sn_k2 = np.random.normal(2.8, 0.6)
+
+    # pbr_se_kepler = np.random.normal(5.9, 1.2)
+    # pbr_se_k2 = np.random.normal(8.9, 7.4)
+    # pbr_sn_kepler = np.random.normal(8.5, 2.4)
+    # pbr_sn_k2 = np.random.normal(10.9, 5.)
+
+    # beta2_se_kepler = np.random.normal(0.2, 0.2)
+    # beta2_se_k2 = np.random.normal(0.5, 1.2)
+    # beta2_sn_kepler = np.random.normal(0.6, 0.2)
+    # beta2_sn_k2 = np.random.normal(0.9, 0.7)
+
+    return periods, planet_radii, planet_masses, se_or_sn
+
 def draw_planet_periods(m, m_star):
     """
     Draw periods for all planets in a planetary system
@@ -1391,6 +1438,10 @@ def draw_planet_radii(periods, alpha_se, alpha_sn):
             #print("try: ", radii[index], lower[index], upper[index])
 
     """
+    print(periods)
+    print(radii)
+    print(upper)
+    print(lower)
     # plot to check if radius sampling and valley are working as expected; feed in: stats.loguniform.rvs(2, 300, size=1000)
     df = pd.DataFrame({'p': periods, 'r': radii, 'upper': upper, 'lower': lower})
     df = df.sort_values(by='p')
@@ -1399,11 +1450,12 @@ def draw_planet_radii(periods, alpha_se, alpha_sn):
     plt.plot(df.p, df.upper, label='upper', color='k')
     plt.plot(df.p, df.lower, label='lower', color='r')
     plt.xlabel('period [days]')
-    plt.ylabel('radius [$R_{\oplus}$]')
+    #plt.ylabel('radius [$R_{\oplus}$]')
     plt.legend(bbox_to_anchor=(1., 1.05))
     plt.tight_layout()
-    plt.savefig(path+'radius-v-period.png')
+    plt.savefig('/Users/chrislam/Desktop/psps/plots/joint/radius-v-period.png')
     plt.show()
+    quit()
     """
 
     return radii, se_or_sn
@@ -1553,7 +1605,7 @@ def gala_galactic_heights(df, output=True):
 
     mw_potential = gp.MilkyWayPotential()
 
-    sun_orbit = mw_potential.integrate_orbit(sun_w0, dt=0.5 * u.Myr, t1=0, t2=4 * u.Gyr)
+    sun_orbit = mw_potential.integrate_orbit(sun_w0, dt=0.5 * u.Myr, t1=0, t2=0.25 * u.Gyr) # one Solar orbit around the MW
 
     star_gaia = GaiaData(df)
 
@@ -2043,3 +2095,194 @@ def subsample_models(df):
     model_sample = df_sculpting[df_sculpting.index.isin(keys)].sort_values(by=['threshold'])
 
     return model_sample
+
+### how to sample a broken power law
+def _powerlaw_integral(a, b, beta):
+    """Integral of x^beta from a to b."""
+    if np.isclose(beta, -1):
+        return np.log(b / a)
+    return (b**(beta + 1) - a**(beta + 1)) / (beta + 1)
+
+
+def _sample_powerlaw(a, b, beta, size=1, rng=None):
+    """Sample from p(x) ∝ x^beta on [a,b]."""
+    if rng is None:
+        rng = np.random.default_rng()
+
+    u = rng.random(size)
+
+    if np.isclose(beta, -1):
+        return a * (b / a) ** u
+
+    c1 = a ** (beta + 1)
+    c2 = b ** (beta + 1)
+
+    return (c1 + u * (c2 - c1)) ** (1.0 / (beta + 1))
+
+
+def sample_broken_powerlaw(size,pmin,pmax,pbr,beta1,beta2,rng=None):
+    """
+    Sample from a broken power law:
+
+        p(x) ∝ x^beta1  for pmin <= x < pbr
+        p(x) ∝ A*x^beta2 for pbr <= x <= pmax
+
+    where A is chosen so the PDF is continuous at pbr.
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    if not (pmin < pbr < pmax):
+        raise ValueError("Require pmin < pbr < pmax")
+
+    # Continuity factor
+    A = pbr ** (beta1 - beta2)
+
+    # Integrated weight of each branch
+    w1 = _powerlaw_integral(pmin, pbr, beta1)
+    w2 = A * _powerlaw_integral(pbr, pmax, beta2)
+
+    frac1 = w1 / (w1 + w2)
+
+    # Choose branch
+    choose1 = rng.random(size) < frac1
+
+    samples = np.empty(size)
+
+    n1 = choose1.sum()
+    n2 = size - n1
+
+    if n1:
+        samples[choose1] = _sample_powerlaw(
+            pmin, pbr, beta1, n1, rng
+        )
+
+    if n2:
+        samples[~choose1] = _sample_powerlaw(
+            pbr, pmax, beta2, n2, rng
+        )
+
+    return samples
+
+def sample_powerlaw(size, xmin, xmax, alpha, rng=None):
+    """
+    Sample from p(x) ∝ x^alpha on [xmin, xmax].
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    u = rng.random(size)
+
+    if np.isclose(alpha, -1):
+        return xmin * (xmax / xmin) ** u
+
+    a = alpha + 1
+    return (xmin**a + u * (xmax**a - xmin**a)) ** (1 / a)
+
+
+def draw_planet_radii_new(periods, alpha_se, alpha_sn, gamma, a_low, a_upp):
+    """
+    Draw planet radii following Zink+ 2023: https://iopscience.iop.org/article/10.3847/1538-3881/acd24c#ajacd24cs4. 
+    This starts with a simple power law.
+    Then we partition using the Van Eylen+ 2018 planet radius-period relation: https://academic.oup.com/mnras/article/479/4/4786/5050069
+    We do not yet offer size ordering within systems. 
+
+    Input: 
+    - periods: planet periods [np.array of floats]
+    - alpha_se: power relation between radius and the PDF of the radius distribution, for Super-Earths [float]
+    - alpha_sn: power relation between radius and the PDF of the radius distribution, for Sub-Neptunes [float]
+
+    Output: 
+    - radii: planet radii [np.array of floats]
+    """
+
+    # mise en place
+    # are these going to be Super-Earths (se) or Sub-Neptunes (sn)? Zink+ 2023 says their occurrence rates overlap, so in a world with only small planets, let's say 50-50
+    # should I assume Peas in a Pod? Should I allow for that? 
+    se_or_sn = np.random.choice(['se','sn'], size=len(periods), p=[0.5, 0.5])
+    se_grid = np.linspace(1.2, 2., 100)
+    sn_grid = np.linspace(2., 4., 100)
+    period_grid = np.logspace(np.log10(3), np.log10(200), 100)
+    m_grid = np.linspace(-0.5, 0.5, 100) # for radius gap
+    a_grid = np.linspace(np.log10(1), np.log10(4), 100) # for radius gap
+
+    # draw alpha, which is the power relation between radius and the PDF of the radius distribution
+
+    # generate PDF for radius, and then normalize to sum to 1
+    q_se = se_grid**alpha_se
+    q_se = q_se/np.sum(q_se)
+
+    q_sn = sn_grid**alpha_sn
+    q_sn = q_sn/np.sum(q_sn)
+    
+    # draw initial radii
+    radii = [] # this will be flexible if I want to break Peas in a Pod later
+    radii_se = np.random.choice(se_grid, size=len(se_or_sn[se_or_sn == 'se']), p=q_se)
+    radii_sn = np.random.choice(sn_grid, size=len(se_or_sn[se_or_sn == 'sn']), p=q_sn)
+    radii.append(radii_se)
+    radii.append(radii_sn)
+    radii = np.concatenate([x.ravel() for x in radii])
+
+    """
+    Cull radius valley planets. Maybe 5%? 
+    """
+    # draw m, which is the power law slope between radius and period
+    radius_valley_m_pdf = make_pdf_rows(m_grid, -0.09, 0.02, 0.04)
+    radius_valley_m_pdf = radius_valley_m_pdf/np.sum(radius_valley_m_pdf)
+    m = np.around(np.random.choice(m_grid, p=radius_valley_m_pdf), 2)
+
+    # draw upper and lower envelope y-intercepts 
+    radius_valley_a_upper_pdf = make_pdf_rows(a_grid, 0.44, 0.04, 0.03)
+    radius_valley_a_upper_pdf = radius_valley_a_upper_pdf/np.sum(radius_valley_a_upper_pdf)
+    a_upper = np.around(np.random.choice(a_grid, p=radius_valley_a_upper_pdf), 2)
+
+    radius_valley_a_lower_pdf = make_pdf_rows(a_grid, 0.29, 0.04, 0.03)
+    radius_valley_a_lower_pdf = radius_valley_a_lower_pdf/np.sum(radius_valley_a_lower_pdf)
+    a_lower = np.around(np.random.choice(a_grid, p=radius_valley_a_lower_pdf), 2)
+
+    # is it in the radius valley?
+    upper = 10**(m * np.log10(periods) + a_upper)
+    lower = 10**(m * np.log10(periods) + a_lower)
+
+    # resample 95% of the time if a planet lands in here
+    for index, radius in enumerate(radii):
+
+        # only for gap planets
+        while (radius >= lower[index]) & (radius <= upper[index]):
+
+            # 5% chance of grace 
+            grace = np.random.choice(['accept gap', 'reject gap'], p=[0.05, 0.95])
+            if grace=='accept gap':
+                break
+            elif grace=='reject gap':
+                pass
+
+            # resample until planet is out of gap
+            if radius <= 2.:
+                radii[index] = np.random.choice(se_grid, size=1, p=q_se)[0]
+            elif (radius > 2.) & (radius <= 4.):
+                radii[index] = np.random.choice(sn_grid, size=1, p=q_sn)[0]
+            #print("try: ", radii[index], lower[index], upper[index])
+
+    #"""
+    print(periods)
+    print(radii)
+    print(upper)
+    print(lower)
+    # plot to check if radius sampling and valley are working as expected; feed in: stats.loguniform.rvs(2, 300, size=1000)
+    df = pd.DataFrame({'p': periods, 'r': radii, 'upper': upper, 'lower': lower})
+    df = df.sort_values(by='p')
+    plt.scatter(df.p, df.r, s=10)
+    plt.xscale('log')
+    plt.plot(df.p, df.upper, label='upper', color='k')
+    plt.plot(df.p, df.lower, label='lower', color='r')
+    plt.xlabel('period [days]')
+    #plt.ylabel('radius [$R_{\oplus}$]')
+    plt.legend(bbox_to_anchor=(1., 1.05))
+    plt.tight_layout()
+    plt.savefig('/Users/chrislam/Desktop/psps/plots/joint/radius-v-period.png')
+    plt.show()
+    quit()
+    #"""
+
+    return radii, se_or_sn

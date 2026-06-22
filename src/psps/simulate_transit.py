@@ -1055,7 +1055,7 @@ def k2_detection(df, angle_flag):
     recovery_fraction = calculate_recovery_fraction(mes, logistic_a, logistic_k, logistic_l)
     
     # the Zink+22 completeness is conditioned on a signal injected into the light curve, so we need to multiply geom_transit_status by the recovery_fraction
-    geom_transit_status = np.where(np.abs(b)<=1., True, False) 
+    geom_transit_status = np.where(np.abs(b)<1., True, False) 
     #print("K2 geom transit status: ", len(geom_transit_status[geom_transit_status==True])/len(geom_transit_status))
     recovery_status = [np.random.choice([1, 0], p=[rf, 1-rf]) for rf in recovery_fraction]
     #print("K2 recovery status: ", recovery_status)
@@ -1111,7 +1111,15 @@ def kepler_detection(df, angle_flag):
     sn = sn.astype(float)
 
     # it's weird that I'm tabulating geometric transits now, but I get free info on it from NaNs in the S/N calculation portion
-    geom_transit_status = np.where(np.isnan(sn), 0, 1)
+    #geom_transit_status = np.where(np.isnan(sn), 0, 1)
+
+    # let's do geom transit status the right way
+    geom_transit_status = np.where(np.abs(b) < 1., True, False)
+    #print(len(geom_transit_status[geom_transit_status==True])/len(geom_transit_status))
+
+    # troubleshoot geom transit
+    #geom_transit = np.abs(np.sin(incl.astype(float))) < (simulate_helpers.solar_radius_to_au(star_radius) + simulate_helpers.earth_radius_to_au(np.array(planet_radius)))/a
+    #print(len(geom_transit[geom_transit==True])/len(geom_transit))
 
     # NOW I can fill in NaNs with zeros
     sn = np.nan_to_num(sn, nan=0.) #sn.fillna(0)
